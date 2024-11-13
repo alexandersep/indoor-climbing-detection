@@ -1,0 +1,3 @@
+# Ignore .mp4 files 
+# Videos are too big for the moment (files are too big for the moment
+*.mp4

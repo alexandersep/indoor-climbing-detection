@@ -1,5 +1,6 @@
 # indoor-climbing-detection
-Computer Vision Masters module. "Detecting features and positions in indoor climbing"
+Computer Vision Masters module CS7GV1, "Detecting features and positions in indoor climbing"
 
-## Setup
+## How to setup and run?
 1. Install the requirements, `pip install -r requirements.txt`
+2. Run app, `python main.py`
