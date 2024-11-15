@@ -1,5 +1,5 @@
-# backproject.py
-# Functions for performing backprojection
+# algorithm.py
+# Functions for performing opencv algorithm
 
 import cv2
 import numpy as np
@@ -48,3 +48,4 @@ def histogram_and_backprojection(img0, img1, bins):
     backproj = cv2.cvtColor(backproj, cv2.COLOR_BGR2RGB)
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
     return backproj, mask, result
+
