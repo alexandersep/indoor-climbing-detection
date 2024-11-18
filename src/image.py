@@ -19,3 +19,10 @@ def read(img_path):
         raise ValueError("Failed to read image at path {} ", img_path)
 
     return img
+
+def first_frame(video_path):
+    cap = cv2.VideoCapture(video_path)
+    _, img = cap.read()
+    cap.release()
+    return img
+

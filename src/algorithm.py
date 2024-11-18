@@ -48,3 +48,44 @@ def histogram_and_backprojection(img0, img1, bins):
     backproj = cv2.cvtColor(backproj, cv2.COLOR_BGR2RGB)
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
     return backproj, mask, result
+
+class SPR:
+    def __init__(self, contour):
+        self.contour = contour
+
+    def area(self):
+        return cv2.contourArea(self.contour)
+
+    def perimeter(self):
+        return cv2.arcLength(self.contour, True)
+
+    def length_width_ratio(self):
+        length = self.length()
+        width = self.width()
+        return length / width
+
+    def rectangularity(self):
+        return self.area() / (self.length() * self.width())
+    
+    def minimum_bounding_rectangle(self):
+        return cv2.minAreaRect(self.contour)
+
+    def elongatedness(self):
+        _, (width, height), _ = self.minimum_bounding_rectangle()
+        return max(width, height) / min(width, height)
+
+    def solidity(self):
+        hull = self.convex_hull()
+        hull_area = cv2.contourArea(hull) 
+        return self.area() / hull_area
+
+    def convex_hull(self):
+        return cv2.convexHull(self.contour)
+
+    def length(self):
+        _, _, width, height = cv2.boundingRect(self.contour)
+        return max(width, height)
+
+    def width(self):
+        _, _, width, height = cv2.boundingRect(self.contour)
+        return min(width, height)
