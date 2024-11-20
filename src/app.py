@@ -123,6 +123,10 @@ def video():
         if not success:
             continue
         img_copy = img.copy()
+        #red_image = inrange(img)
+        #cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
+        #cv2.imshow('Original Image', red_image)
+        #cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         blurred_image = cv2.GaussianBlur(img_gray, (5, 5), 1)
 
@@ -137,7 +141,7 @@ def video():
             
             for (x, y, r) in unpacked_circles:
                 # Draw the outer circle
-                cv2.circle(img, (x, y), r, (0, 255, 0), 4)
+                #cv2.circle(img, (x, y), r, (0, 255, 0), 4)
                 found = (x,y)
                 circle_list.append(found)
 
@@ -158,9 +162,9 @@ def video():
         green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, disc)
 
         # Display the results
-        cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
-        cv2.imshow('Original Image', green_mask)
-        cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
+        #cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
+        #cv2.imshow('Original Image', green_mask)
+        #cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
 
         contours, _ = cv2.findContours(image=green_mask, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
 
@@ -191,18 +195,22 @@ def video():
                 holds.append(((circle_x, circle_y), closest_contour))
 
         # Draw the lines between the contour centroids and the closest circles
-        for circle_coords, contour in holds:
-            circle_x, circle_y = circle_coords
-            contour_x, contour_y = calculate_centroid(contour)
-            print(f"Circle ({circle_x}, {circle_y}), Contour ({contour_x}, {contour_y})")
-            cv2.line(img, (circle_x, circle_y), (contour_x, contour_y), (0, 0, 255), 5)
+        #for circle_coords, contour in holds:
+            #circle_x, circle_y = circle_coords
+            #contour_x, contour_y = calculate_centroid(contour)
+            #print(f"Circle ({circle_x}, {circle_y}), Contour ({contour_x}, {contour_y})")
+            #cv2.line(img, (circle_x, circle_y), (contour_x, contour_y), (0, 0, 255), 5)
 
-        contour_end = calculate_hold(holds, isEnd=True)
+        for contour in contours:
+            x, y = calculate_centroid(contour)
+            cv2.circle(img, (x, y), 5, (0, 255, 0), 3)
+
+        contour_end = calculate_hold(holds, isEnd=True, k=0)
         x, y, w, h = cv2.boundingRect(contour_end)
         cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 5)
         cv2.putText(img, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
-        contour_begin = calculate_hold(holds, isEnd=False)
+        contour_begin = calculate_hold(holds, isEnd=False, k=0)
         x, y, w, h = cv2.boundingRect(contour_begin)
         cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 5)
         cv2.putText(img, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
@@ -220,12 +228,16 @@ def video():
     cap.release()
     out.release()
 
-def calculate_hold(holds, isEnd):
+def calculate_hold(holds, isEnd, k):
+    """
+    kth hold
+    """
     highest = find_highest_hold(holds)
 
     min_dist = float("inf")
     closest_hold = None
     
+    close_holds = []
     # Loop through each hold to find the closest one with a positive slope
     for circle_coords, contour in holds:
         circle_x, circle_y = circle_coords
@@ -238,13 +250,15 @@ def calculate_hold(holds, isEnd):
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
+                    close_holds.append(closest_hold)
         else:
             if contour_y < circle_y:
                 temp_dist = dist(circle_x, circle_y, contour_x, contour_y)
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-    return closest_hold
+                    close_holds.append(closest_hold)
+    return close_holds[len(close_holds) - k - 1]
 
 def find_highest_hold(holds):
     lowest_x = float('inf')
@@ -398,46 +412,55 @@ def detect_and_match_features(left_image, right_image, ratio_test_threshold=0.7)
     
     return good_matches,keypoints_left, keypoints_right, matched_image
 
-def inrange():
+def inrange(green_climb):
     # Load the image
-    green_climb = cv2.imread("resources/images/green-climb-1.jpg")
+    #green_climb = cv2.imread("resources/images/green-climb-1.jpg")
     
     # Convert the image from BGR to HSV
     hsv_image = cv2.cvtColor(green_climb, cv2.COLOR_BGR2HSV)
     
     # Define the range for detecting green color in HSV
-    lower_green = np.array([35, 50, 50])  # Lower bound for green
-    upper_green = np.array([85, 255, 255])  # Upper bound for green
+    #lower_green = np.array([35, 50, 50])  # Lower bound for green
+    #upper_green = np.array([85, 255, 255])  # Upper bound for green
 
-    lower_red1 = np.array([0, 120, 70])   # Lower bound for the first red range (near 0 hue)
-    upper_red1 = np.array([10, 255, 255]) # Upper bound for the first red range
+    #lower_red1 = np.array([0, 120, 70])   # Lower bound for the first red range (near 0 hue)
+    #upper_red1 = np.array([10, 255, 255]) # Upper bound for the first red range
     
-    lower_red2 = np.array([170, 120, 70])  # Lower bound for the second red range (near 180 hue)
-    upper_red2 = np.array([180, 255, 255]) # Upper bound for the second red range
+    #lower_red2 = np.array([170, 120, 70])  # Lower bound for the second red range (near 180 hue)
+    #upper_red2 = np.array([180, 255, 255]) # Upper bound for the second red range
+
+    # Define color ranges in HSV
+    red_lower = np.array([170, 50, 50])  # Adjust the values based on #9a3241, #78343a
+    red_upper = np.array([180, 255, 255])
+        
+    white_lower = np.array([0, 0, 150])  # Adjust the values based on #cd9194
+    white_upper = np.array([180, 50, 255])
     
     # Create a binary mask where green pixels are 255 and others are 0
     #green_mask = cv2.inRange(hsv_image, lower_green, upper_green)
 
-    mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
+    mask1 = cv2.inRange(hsv_image, red_lower, red_upper)
+    mask2 = cv2.inRange(hsv_image, white_lower, white_upper)
 
     green_mask = cv2.bitwise_or(mask1, mask2)
     
     # Optionally, you can use the mask to extract the green regions
     green_region = cv2.bitwise_and(green_climb, green_climb, mask=green_mask)
+
+    return green_region
     
     # Display the results
-    cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
-    cv2.imshow('Original Image', green_climb)
-    cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
+    #cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
+    #cv2.imshow('Original Image', green_climb)
+    #cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
 
-    cv2.namedWindow('Green Mask', cv2.WINDOW_NORMAL)
-    cv2.imshow('Green Mask', green_mask)
-    cv2.resizeWindow('Green Mask', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
+    #cv2.namedWindow('Green Mask', cv2.WINDOW_NORMAL)
+    #cv2.imshow('Green Mask', green_mask)
+    #cv2.resizeWindow('Green Mask', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
 
-    cv2.namedWindow('Detected Green Region', cv2.WINDOW_NORMAL)
-    cv2.imshow('Detected Green Region', green_region)
-    cv2.resizeWindow('Detected Green Region', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
-    
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    #cv2.namedWindow('Detected Green Region', cv2.WINDOW_NORMAL)
+    #cv2.imshow('Detected Green Region', green_region)
+    #cv2.resizeWindow('Detected Green Region', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
+    #
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
