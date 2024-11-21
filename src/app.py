@@ -1,6 +1,7 @@
 import cv2 
 import matplotlib.pyplot as plt
 import numpy as np
+import mediapipe as mp
 
 import src.image as image
 import src.figure as figure
@@ -109,13 +110,17 @@ def app():
     #inrange()
     #task_sift_matching()
     #edge_detect_numbers()
-    video()
+    # video()
+    show_human_skeleton(
+        "resources/videos/green-climb.mp4"
+    )
+    
 
 def video():
     cap = cv2.VideoCapture("resources/videos/green-climb.mp4")
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)/5)
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)/5)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter('resources/videos/output.mp4', fourcc, 20.0, (frame_width, frame_height))
 
     while cap.isOpened():
@@ -218,7 +223,7 @@ def video():
         # Show the result
         #show_image(img)
         cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('frame', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
+        cv2.resizeWindow('frame', int(frame_width), int(frame_height))  # Set the window size to be smaller (e.g., 600x400)
         cv2.imshow('frame', img)
         out.write(img)
         c = cv2.waitKey(1)
@@ -464,3 +469,39 @@ def inrange(green_climb):
     #
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
+
+def show_human_skeleton(video_path):
+    # Initialize mediapipe pose solution
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose(static_image_mode=False, model_complexity=2, enable_segmentation=False, min_detection_confidence=0.7)
+
+    # Start capturing video
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error: Unable to open video.")
+        return
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Resize the frame to half its size
+        frame = cv2.resize(frame, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+
+        # Convert the BGR image to RGB.
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Process the image and detect the pose
+        results = pose.process(image_rgb)
+
+        # Draw the pose annotations on the resized image.
+        mp_drawing = mp.solutions.drawing_utils
+        annotated_image = frame.copy()
+        mp_drawing.draw_landmarks(annotated_image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+
+        # Display the resized image
+        cv2.imshow('Human Skeleton', annotated_image)
+
+        if cv2.waitKey(5) & 0xFF == 27:
+            break

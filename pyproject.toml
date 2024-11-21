@@ -1,3 +1,0 @@
-# Necessary for pyright LSP server to find environment path
-[tools.pyright]
-/venv/bin/activate
