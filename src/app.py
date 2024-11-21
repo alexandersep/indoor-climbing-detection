@@ -7,6 +7,9 @@ video_path = "resources/videos/green-climb.mp4";
 
 def app():
     video, frame_width, frame_height = load_video(video_path)
+    if not video.isOpened():
+        print(f"Failed to open video file: {video_path}")
+        return
     
     mp_pose, pose, mp_drawing = pose_init(min_detection_confidence=0.5)
 
