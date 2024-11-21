@@ -132,7 +132,7 @@ def video():
 
         circles = cv2.HoughCircles(blurred_image, 
                                     cv2.HOUGH_GRADIENT, dp=1, minDist=20, 
-                                    param1=150, param2=30, minRadius=10, maxRadius=25)
+                                    param1=5, param2=35, minRadius=10, maxRadius=25)
         
         circle_list = []
         if circles is not None:
@@ -152,21 +152,28 @@ def video():
         hsv_image = cv2.cvtColor(green_climb, cv2.COLOR_BGR2HSV)
         
         # Define the range for detecting green color in HSV
-        lower_green = np.array([35, 50, 50])  # Lower bound for green
-        upper_green = np.array([85, 255, 255])  # Upper bound for green
+        # Green
+        lower = np.array([35, 50, 50])
+        upper = np.array([85, 255, 255])
+        # Blue
+        #lower= np.array([100, 150, 100])
+        #upper= np.array([140, 255, 255])
+        # Yellow
+        #lower = np.array([15, 100, 100])
+        #upper = np.array([25, 255, 255])
 
-        green_mask = cv2.inRange(hsv_image, lower_green, upper_green)
+        mask = cv2.inRange(hsv_image, lower, upper)
 
-        disc = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, disc)
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, disc)
+        disc = cv2.getStructuringElement(cv2.MORPH_RECT,(9,9))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, disc)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, disc)
 
         # Display the results
-        #cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
-        #cv2.imshow('Original Image', green_mask)
-        #cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
+        cv2.namedWindow('Original Image', cv2.WINDOW_NORMAL)
+        cv2.imshow('Original Image', mask)
+        cv2.resizeWindow('Original Image', 600, 400)  # Set the window size to be smaller (e.g., 600x400)
 
-        contours, _ = cv2.findContours(image=green_mask, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
+        contours, _ = cv2.findContours(image=mask, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
 
         if not contours:
             print("No contours found")
@@ -195,25 +202,27 @@ def video():
                 holds.append(((circle_x, circle_y), closest_contour))
 
         # Draw the lines between the contour centroids and the closest circles
-        #for circle_coords, contour in holds:
-            #circle_x, circle_y = circle_coords
-            #contour_x, contour_y = calculate_centroid(contour)
+        for circle_coords, contour in holds:
+            circle_x, circle_y = circle_coords
+            contour_x, contour_y = calculate_centroid(contour)
             #print(f"Circle ({circle_x}, {circle_y}), Contour ({contour_x}, {contour_y})")
-            #cv2.line(img, (circle_x, circle_y), (contour_x, contour_y), (0, 0, 255), 5)
+            cv2.line(img, (circle_x, circle_y), (contour_x, contour_y), (0, 0, 255), 5)
 
         for contour in contours:
             x, y = calculate_centroid(contour)
             cv2.circle(img, (x, y), 5, (0, 255, 0), 3)
 
-        contour_end = calculate_hold(holds, isEnd=True, k=0)
-        x, y, w, h = cv2.boundingRect(contour_end)
-        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 5)
-        cv2.putText(img, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        contour_end = calculate_hold(holds, isEnd=True)
+        if contour_end is not None:
+            x, y, w, h = cv2.boundingRect(contour_end)
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 5)
+            cv2.putText(img, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
-        contour_begin = calculate_hold(holds, isEnd=False, k=0)
-        x, y, w, h = cv2.boundingRect(contour_begin)
-        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 5)
-        cv2.putText(img, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        contour_begin = calculate_hold(holds, isEnd=False)
+        if contour_begin is not None:
+            x, y, w, h = cv2.boundingRect(contour_begin)
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 5)
+            cv2.putText(img, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
         # Show the result
         #show_image(img)
@@ -228,16 +237,12 @@ def video():
     cap.release()
     out.release()
 
-def calculate_hold(holds, isEnd, k):
-    """
-    kth hold
-    """
+def calculate_hold(holds, isEnd):
     highest = find_highest_hold(holds)
 
     min_dist = float("inf")
     closest_hold = None
     
-    close_holds = []
     # Loop through each hold to find the closest one with a positive slope
     for circle_coords, contour in holds:
         circle_x, circle_y = circle_coords
@@ -250,15 +255,13 @@ def calculate_hold(holds, isEnd, k):
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-                    close_holds.append(closest_hold)
         else:
             if contour_y < circle_y:
                 temp_dist = dist(circle_x, circle_y, contour_x, contour_y)
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-                    close_holds.append(closest_hold)
-    return close_holds[len(close_holds) - k - 1]
+    return closest_hold
 
 def find_highest_hold(holds):
     lowest_x = float('inf')
