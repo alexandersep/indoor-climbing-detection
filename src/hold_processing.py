@@ -37,12 +37,12 @@ def process_holds(frame):
         x, y = calculate_centroid(contour)
         cv2.circle(frame, (x, y), 5, (0, 255, 0), 3)
 
-    contour_end = calculate_hold(holds, isEnd=True, k=0)
+    contour_end = calculate_hold(holds, isEnd=True)
     x, y, w, h = cv2.boundingRect(contour_end)
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
     cv2.putText(frame, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
-    contour_begin = calculate_hold(holds, isEnd=False, k=0)
+    contour_begin = calculate_hold(holds, isEnd=False)
     x, y, w, h = cv2.boundingRect(contour_begin)
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
     cv2.putText(frame, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
@@ -65,13 +65,12 @@ def get_circles(frame):
     return circle_list
 
 
-def calculate_hold(holds, isEnd, k):
+def calculate_hold(holds, isEnd):
     highest = find_highest_hold(holds)
 
     min_dist = float("inf")
     closest_hold = None
     
-    close_holds = []
     # Loop through each hold to find the closest one with a positive slope
     for circle_coords, contour in holds:
         circle_x, circle_y = circle_coords
@@ -84,15 +83,13 @@ def calculate_hold(holds, isEnd, k):
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-                    close_holds.append(closest_hold)
         else:
             if contour_y < circle_y:
                 temp_dist = dist(circle_x, circle_y, contour_x, contour_y)
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-                    close_holds.append(closest_hold)
-    return close_holds[len(close_holds) - k - 1]
+    return closest_hold
 
 def find_highest_hold(holds):
     lowest_x = float('inf')
@@ -117,4 +114,3 @@ def calculate_centroid(contour):
         cx, cy = 0, 0
     
     return cx, cy
-    
