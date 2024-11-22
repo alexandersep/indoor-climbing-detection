@@ -15,7 +15,7 @@ def process_skeleton(frame, mp_pose, pose, mp_drawing):
                 x = int(landmark.x * frame.shape[1])
                 y = int(landmark.y * frame.shape[0])
                 cv2.putText(frame, limb_names[limb_name], (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-                limb_list.append( [x, y] )
+                limb_list.append( ([x, y], limb_name) )
     return limb_list
 
 def pose_init(min_detection_confidence=0.5):

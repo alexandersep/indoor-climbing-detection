@@ -3,6 +3,29 @@ import numpy as np
 
 from src.utils import dist
 
+def process_hands(frame, limb_list, contours):
+    min_contours = []
+    for limb, limb_name in limb_list:
+        if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX':
+            limb_x, limb_y = limb # Usually left index finger
+            min_dist = float('inf')
+            for contour in contours:
+                x, y = calculate_centroid(contour)
+                distance = dist(x, y, limb_x, limb_y)
+                if min_dist > distance and distance < 100: # Ensure the hand is close to the hold
+                    min_dist = distance
+                    min_contours.append( (contour, limb_name) )
+
+    for (min_contour, limb_name) in min_contours: 
+        color = (0, 0, 0)
+        if limb_name == 'LEFT_INDEX':
+            color = (255, 0, 0)
+        if limb_name == 'RIGHT_INDEX':
+            color = (0, 0, 255)
+        x, y, w, h = cv2.boundingRect(min_contour)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+    return frame
+
 def process_holds(frame):
     circle_list = get_circles(frame)
     # Green mask processing
@@ -47,6 +70,7 @@ def process_holds(frame):
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
     cv2.putText(frame, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
+    return contours
 
 def get_circles(frame):
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)

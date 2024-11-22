@@ -1,6 +1,6 @@
 import cv2 
 
-from src.hold_processing import process_holds
+from src.hold_processing import *
 from src.body_processing import *
 from src.opticalflow_processing import *
 
@@ -14,15 +14,14 @@ def app():
     
     mp_pose, pose, mp_drawing = pose_init(min_detection_confidence=0.5)
 
-    lk_params, mask, old_gray, color, p0, isPersonInFrame = setup_optical_flow(video)
     while video.isOpened():
         success, frame = video.read()
         if not success:
             break
 
-        process_holds(frame)
+        contours = process_holds(frame)
         limb_list = process_skeleton(frame, mp_pose, pose, mp_drawing)
-        p0, old_gray, mask, isPersonInFrame, frame = process_opticalflow(frame, limb_list, lk_params, isPersonInFrame, mask, old_gray, color, p0)
+        frame = process_hands(frame, limb_list, contours)
 
         # Show the combined result
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
