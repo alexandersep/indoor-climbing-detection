@@ -14,14 +14,18 @@ def app():
     
     mp_pose, pose, mp_drawing = pose_init(min_detection_confidence=0.5)
 
+    finished = False
+    video.set(cv2.CAP_PROP_POS_FRAMES, 750)
     while video.isOpened():
         success, frame = video.read()
         if not success:
             break
 
-        contours = process_holds(frame)
+        contours, contourPos = process_holds(frame)
         limb_list = process_skeleton(frame, mp_pose, pose, mp_drawing)
-        frame = process_hands(frame, limb_list, contours)
+        frame, isFinished = process_hands(frame, limb_list, contours, contourPos)
+
+        finished = max(finished, isFinished) # Set finished to True if isFinished is True
 
         # Show the combined result
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
@@ -30,6 +34,8 @@ def app():
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+    print("Climber has completed climb? {}".format(finished))
 
     video.release()
     cv2.destroyAllWindows()
