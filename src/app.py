@@ -7,6 +7,7 @@ from src.utils import *
 
 video_path = "resources/videos/green-climb.mp4"
 output_path = "resources/videos/output/green-climb-trimmed.mp4"
+output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
 def app():
     video, frame_width, frame_height, _, _ = load_video(video_path)
@@ -26,6 +27,11 @@ def app():
 
     prevStarted = False
     prevFinished = False
+
+    left_hand_holds = []
+    right_hand_holds = []
+    left_foot_holds = []
+    right_foot_holds = []
     while video.isOpened():
         success, frame = video.read()
         if not success:
@@ -33,7 +39,14 @@ def app():
 
         contours, start_hold, end_hold = process_holds(frame)
         limb_list = process_skeleton(frame, mp_pose, pose, mp_drawing)
-        frame, isStarted, isFinished = process_hands(frame, limb_list, contours, start_hold, end_hold)
+        frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, contours, start_hold, end_hold)
+        frameCount += 1
+
+        if started and not finished:
+            skip_holds(left_hand_holds, left_hand_hold, frameCount)
+            skip_holds(right_hand_holds, right_hand_hold, frameCount)
+            skip_holds(left_foot_holds, left_foot_hold, frameCount)
+            skip_holds(right_foot_holds, right_foot_hold, frameCount)
 
         isStartedLeft, isStartedRight = isStarted
         isFinishedLeft, isFinishedRight = isFinished
@@ -46,7 +59,6 @@ def app():
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
         cv2.imshow('Combined Frame', frame)
-        frameCount += 1
 
         if started and prevStarted:
             beginFrame = frameCount
@@ -68,7 +80,34 @@ def app():
     print("Climber starts at frame {}".format(beginFrame))
     print("Climber ends at frame {}".format(endFrame))
 
-    download_video_in_range(video_path, output_path, beginFrame, endFrame)
+    print("Left Hand holds {}".format(left_hand_holds))
+    print("Right Hand holds {}".format(right_hand_holds))
+
+    print("Left Foot holds {}".format(left_foot_holds))
+    print("Right Foot holds {}".format(right_foot_holds))
+
+    print("Number of left hand holds {}".format(len(left_hand_holds)))
+    print("Number of right hand holds {}".format(len(right_hand_holds)))
+    print("Number of right foot holds {}".format(len(left_foot_holds)))
+    print("Number of right foot holds {}".format(len(right_foot_holds)))
 
     video.release()
     cv2.destroyAllWindows()
+
+    download_video_in_range(video_path, output_path, beginFrame, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
+    (_, _, selectFrameNumber) = left_hand_holds[6] # selecting the 5th left hand hold. Note: I do not bounds check
+    download_video_in_range(video_path, output_path_select_frame, selectFrameNumber, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
+
+def skip_holds(holds, hold, frameCount):
+    ((x, y), (w, h)) = hold
+    skip_hand = False
+    if hold == ((-1, -1), (-1, -1)):
+        return
+    for left_hand in holds:
+        ((limb_x, limb_y), _, _) = left_hand
+        distance = dist(x, y, limb_x, limb_y)
+        if distance <= 100:
+            skip_hand = True
+
+    if not skip_hand:
+        holds.append( ((x, y), (w, h), frameCount) )

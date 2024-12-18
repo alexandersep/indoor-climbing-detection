@@ -6,7 +6,7 @@ from src.utils import dist
 def process_hands(frame, limb_list, contours, start_hold, end_hold):
     min_contours = []
     for limb, limb_name in limb_list:
-        if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX':
+        if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX' or limb_name == 'LEFT_FOOT_INDEX' or limb_name == 'RIGHT_FOOT_INDEX':
             limb_x, limb_y = limb # Usually left index finger
             min_dist = float('inf')
             for contour in contours:
@@ -16,18 +16,31 @@ def process_hands(frame, limb_list, contours, start_hold, end_hold):
                     min_dist = distance
                     min_contours.append( (contour, limb_name) )
 
+    left_hand_hold = ((-1, -1), (-1, -1))
+    right_hand_hold = ((-1, -1), (-1, -1))
+    left_foot_hold = ((-1, -1), (-1, -1))
+    right_foot_hold = ((-1, -1), (-1, -1))
     started_left, started_right = False, False
     finished_left, finished_right = False, False
     for (min_contour, limb_name) in min_contours: 
-        color = (0, 0, 0)
         x, y = calculate_centroid(min_contour)
         x, y, w, h = cv2.boundingRect(min_contour)
         if limb_name == 'LEFT_INDEX':
             color = (255, 0, 0)
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            left_hand_hold = ((x, y), (w, h))
         if limb_name == 'RIGHT_INDEX':
             color = (0, 0, 255)
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            right_hand_hold = ((x, y), (w, h))
+        if limb_name == 'LEFT_FOOT_INDEX':
+            color = (125, 0, 0)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            left_foot_hold = ((x, y), (w, h))
+        if limb_name == 'RIGHT_FOOT_INDEX':
+            color = (0, 0, 125)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            right_foot_hold = ((x, y), (w, h))
 
         (sx, sy) = start_hold
         if (sx - 20 <= x <= sx + 20) and (sy - 20 <= y <= sy + 20):
@@ -43,7 +56,7 @@ def process_hands(frame, limb_list, contours, start_hold, end_hold):
             if limb_name == 'RIGHT_INDEX':
                 finished_right = True
 
-    return frame, (started_left, started_right), (finished_left, finished_right)
+    return frame, (started_left, started_right), (finished_left, finished_right), left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold
 
 def process_holds(frame):
     circle_list = get_circles(frame)
@@ -106,7 +119,7 @@ def get_circles(frame):
     circle_list = []
     if circles is not None:
         unpacked_circles = np.round(circles[0, :]).astype("int")
-        for (x, y, r) in unpacked_circles:
+        for (x, y, _) in unpacked_circles:
             found = (x, y)
             circle_list.append(found)
     return circle_list
