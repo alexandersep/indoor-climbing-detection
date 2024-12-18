@@ -95,7 +95,7 @@ def app():
     cv2.destroyAllWindows()
 
     download_video_in_range(video_path, output_path, beginFrame, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
-    (_, _, selectFrameNumber) = left_hand_holds[6] # selecting the 5th left hand hold. Note: I do not bounds check
+    (_, _, selectFrameNumber) = left_hand_holds[7] # selecting the nth left hand hold. Note: I do not bounds check
     download_video_in_range(video_path, output_path_select_frame, selectFrameNumber, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
 
 def skip_holds(holds, hold, frameCount):

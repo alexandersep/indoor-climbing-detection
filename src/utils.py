@@ -30,26 +30,26 @@ def download_video_in_range(video_path, output_path, begin_frame, end_frame, lef
             break
 
         # For debugging
-        for left_hand in left_hand_holds:
-            ((x, y), (w, h), frameCount) = left_hand
-            color = (255, 0, 0) # gbr
-            cv2.putText(frame, "Left Hand: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
-        for right_hand in right_hand_holds:
-            ((x, y), (w, h), frameCount) = right_hand
-            color = (0, 0, 255)
-            cv2.putText(frame, "Right Hand: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
-        for left_foot in left_foot_holds:
-            ((x, y), (w, h), frameCount) = left_foot
-            color = (125, 0, 0)
-            cv2.putText(frame, "Left Foot: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
-        for right_foot in right_foot_holds:
-            ((x, y), (w, h), frameCount) = right_foot
-            color = (0, 0, 125)
-            cv2.putText(frame, "Right Foot: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+        #for left_hand in left_hand_holds:
+        #    ((x, y), (w, h), frameCount) = left_hand
+        #    color = (255, 0, 0) # gbr
+        #    cv2.putText(frame, "Left Hand: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        #    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+        #for right_hand in right_hand_holds:
+        #    ((x, y), (w, h), frameCount) = right_hand
+        #    color = (0, 0, 255)
+        #    cv2.putText(frame, "Right Hand: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        #    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+        #for left_foot in left_foot_holds:
+        #    ((x, y), (w, h), frameCount) = left_foot
+        #    color = (125, 0, 0)
+        #    cv2.putText(frame, "Left Foot: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        #    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+        #for right_foot in right_foot_holds:
+        #    ((x, y), (w, h), frameCount) = right_foot
+        #    color = (0, 0, 125)
+        #    cv2.putText(frame, "Right Foot: " + str(frameCount), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        #    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
 
         output.write(frame)
         begin_frame += 1
