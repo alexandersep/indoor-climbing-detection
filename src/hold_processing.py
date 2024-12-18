@@ -3,6 +3,61 @@ import numpy as np
 
 from src.utils import dist
 
+def process_hands(frame, limb_list, contours, start_hold, end_hold):
+    min_contours = []
+    for limb, limb_name in limb_list:
+        if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX' or limb_name == 'LEFT_FOOT_INDEX' or limb_name == 'RIGHT_FOOT_INDEX':
+            limb_x, limb_y = limb # Usually left index finger
+            min_dist = float('inf')
+            for contour in contours:
+                x, y = calculate_centroid(contour)
+                distance = dist(x, y, limb_x, limb_y)
+                if min_dist > distance and distance < 100: # Ensure the hand is close to the hold
+                    min_dist = distance
+                    min_contours.append( (contour, limb_name) )
+
+    left_hand_hold = ((-1, -1), (-1, -1))
+    right_hand_hold = ((-1, -1), (-1, -1))
+    left_foot_hold = ((-1, -1), (-1, -1))
+    right_foot_hold = ((-1, -1), (-1, -1))
+    started_left, started_right = False, False
+    finished_left, finished_right = False, False
+    for (min_contour, limb_name) in min_contours: 
+        x, y = calculate_centroid(min_contour)
+        x, y, w, h = cv2.boundingRect(min_contour)
+        if limb_name == 'LEFT_INDEX':
+            color = (255, 0, 0)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            left_hand_hold = ((x, y), (w, h))
+        if limb_name == 'RIGHT_INDEX':
+            color = (0, 0, 255)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            right_hand_hold = ((x, y), (w, h))
+        if limb_name == 'LEFT_FOOT_INDEX':
+            color = (125, 0, 0)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            left_foot_hold = ((x, y), (w, h))
+        if limb_name == 'RIGHT_FOOT_INDEX':
+            color = (0, 0, 125)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 5)
+            right_foot_hold = ((x, y), (w, h))
+
+        (sx, sy) = start_hold
+        if (sx - 20 <= x <= sx + 20) and (sy - 20 <= y <= sy + 20):
+            if limb_name == 'LEFT_INDEX':
+                started_left = True
+            if limb_name == 'RIGHT_INDEX':
+                started_right = True
+
+        (ex, ey) = end_hold
+        if (ex - 20 <= x <= ex + 20) and (ey - 20 <= y <= ey + 20):
+            if limb_name == 'LEFT_INDEX':
+                finished_left = True
+            if limb_name == 'RIGHT_INDEX':
+                finished_right = True
+
+    return frame, (started_left, started_right), (finished_left, finished_right), left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold
+
 def process_holds(frame):
     circle_list = get_circles(frame)
     # Green mask processing
@@ -37,16 +92,21 @@ def process_holds(frame):
         x, y = calculate_centroid(contour)
         cv2.circle(frame, (x, y), 5, (0, 255, 0), 3)
 
-    contour_end = calculate_hold(holds, isEnd=True, k=0)
-    x, y, w, h = cv2.boundingRect(contour_end)
-    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
-    cv2.putText(frame, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-
-    contour_begin = calculate_hold(holds, isEnd=False, k=0)
+    contour_begin = calculate_hold(holds, isEnd=False)
     x, y, w, h = cv2.boundingRect(contour_begin)
     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
     cv2.putText(frame, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
+    start_hold = (x,y)
+
+    contour_end = calculate_hold(holds, isEnd=True)
+    x, y, w, h = cv2.boundingRect(contour_end)
+    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
+    cv2.putText(frame, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+    end_hold = (x, y)
+
+    return contours, start_hold, end_hold
 
 def get_circles(frame):
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -59,19 +119,18 @@ def get_circles(frame):
     circle_list = []
     if circles is not None:
         unpacked_circles = np.round(circles[0, :]).astype("int")
-        for (x, y, r) in unpacked_circles:
+        for (x, y, _) in unpacked_circles:
             found = (x, y)
             circle_list.append(found)
     return circle_list
 
 
-def calculate_hold(holds, isEnd, k):
+def calculate_hold(holds, isEnd):
     highest = find_highest_hold(holds)
 
     min_dist = float("inf")
     closest_hold = None
     
-    close_holds = []
     # Loop through each hold to find the closest one with a positive slope
     for circle_coords, contour in holds:
         circle_x, circle_y = circle_coords
@@ -84,15 +143,13 @@ def calculate_hold(holds, isEnd, k):
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-                    close_holds.append(closest_hold)
         else:
             if contour_y < circle_y:
                 temp_dist = dist(circle_x, circle_y, contour_x, contour_y)
                 if temp_dist < min_dist:
                     min_dist = temp_dist
                     closest_hold = contour
-                    close_holds.append(closest_hold)
-    return close_holds[len(close_holds) - k - 1]
+    return closest_hold
 
 def find_highest_hold(holds):
     lowest_x = float('inf')
@@ -117,4 +174,3 @@ def calculate_centroid(contour):
         cx, cy = 0, 0
     
     return cx, cy
-    
