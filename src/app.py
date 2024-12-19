@@ -5,12 +5,12 @@ from src.body_processing import *
 from src.opticalflow_processing import *
 from src.utils import *
 
-video_path = "resources/videos/green-climb.mp4"
-output_path = "resources/videos/output/green-climb-trimmed.mp4"
+import uuid
+
 output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
-def app():
-    video, frame_width, frame_height, _, _ = load_video(video_path)
+def process_video(video_path, output_path):
+    video, frame_width, frame_height, _, fps = load_video(video_path)
     if not video.isOpened():
         print(f"Failed to open video file: {video_path}")
         return
@@ -28,6 +28,10 @@ def app():
     prevStarted = False
     prevFinished = False
 
+    first_frame_contours = []
+    isFirstFrame = True
+    result = []
+    labels = []
     left_hand_holds = []
     right_hand_holds = []
     left_foot_holds = []
@@ -38,15 +42,21 @@ def app():
             break
 
         contours, start_hold, end_hold = process_holds(frame)
+        if isFirstFrame:
+            isFirstFrame = False
+            for contour in contours:
+                cx, cy, cw, ch = cv2.boundingRect(contour)
+                first_frame_contours.append((cx, cy, cw, ch))
+            first_frame_contours = sorted(first_frame_contours, key=lambda x: x[1], reverse=True)
         limb_list = process_skeleton(frame, mp_pose, pose, mp_drawing)
         frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, contours, start_hold, end_hold)
         frameCount += 1
 
         if started and not finished:
-            skip_holds(left_hand_holds, left_hand_hold, frameCount)
-            skip_holds(right_hand_holds, right_hand_hold, frameCount)
-            skip_holds(left_foot_holds, left_foot_hold, frameCount)
-            skip_holds(right_foot_holds, right_foot_hold, frameCount)
+            skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps)
+            skip_holds(right_hand_holds, right_hand_hold, frameCount, first_frame_contours, "Right Hand", labels, fps)
+            skip_holds(left_foot_holds, left_foot_hold, frameCount, first_frame_contours, "Left Foot", labels, fps)
+            skip_holds(right_foot_holds, right_foot_hold, frameCount, first_frame_contours, "Right Foot", labels, fps)
 
         isStartedLeft, isStartedRight = isStarted
         isFinishedLeft, isFinishedRight = isFinished
@@ -67,47 +77,45 @@ def app():
         prevStarted = isStartedLeft and isStartedRight
         prevFinished = isFinishedLeft and isFinishedRight
 
+        if started and (finished and not prevFinished):
+            distinct_path = output_path + str(uuid.uuid4()) + ".mp4"
+            endFrame += 90
+            download_video_in_range(video_path, distinct_path, beginFrame, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
+            started = False
+            prevStarted = False
+            finished = False
+            prevFinished = False
+
+            result.append( (distinct_path, labels) )
+            labels = []
+            left_hand_holds = []
+            right_hand_holds = []
+            left_foot_holds = []
+            right_foot_holds = []
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
-    if beginFrame >= 10:
-        beginFrame -= 10
-    if endFrame >= 10:
-        endFrame -= 10
-
-    print("Climber has started climb? {}".format(started))
-    print("Climber has completed climb? {}".format(finished))
-    print("Climber starts at frame {}".format(beginFrame))
-    print("Climber ends at frame {}".format(endFrame))
-
-    print("Left Hand holds {}".format(left_hand_holds))
-    print("Right Hand holds {}".format(right_hand_holds))
-
-    print("Left Foot holds {}".format(left_foot_holds))
-    print("Right Foot holds {}".format(right_foot_holds))
-
-    print("Number of left hand holds {}".format(len(left_hand_holds)))
-    print("Number of right hand holds {}".format(len(right_hand_holds)))
-    print("Number of right foot holds {}".format(len(left_foot_holds)))
-    print("Number of right foot holds {}".format(len(right_foot_holds)))
 
     video.release()
     cv2.destroyAllWindows()
 
-    download_video_in_range(video_path, output_path, beginFrame, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
-    (_, _, selectFrameNumber) = left_hand_holds[7] # selecting the nth left hand hold. Note: I do not bounds check
-    download_video_in_range(video_path, output_path_select_frame, selectFrameNumber, endFrame, left_hand_holds, right_hand_holds, left_foot_holds, right_foot_holds)
+    return result
 
-def skip_holds(holds, hold, frameCount):
-    ((x, y), (w, h)) = hold
-    skip_hand = False
+def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps):
+    ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
         return
+
+    isSkip = False
     for left_hand in holds:
         ((limb_x, limb_y), _, _) = left_hand
         distance = dist(x, y, limb_x, limb_y)
         if distance <= 100:
-            skip_hand = True
-
-    if not skip_hand:
-        holds.append( ((x, y), (w, h), frameCount) )
+            isSkip = True
+    if not isSkip:
+        for hold_number, contour in enumerate(first_frame_contours):
+            cx, cy, cw, ch = contour
+            if (cx - 40 <= x <= cx + 40) and (cy - 40 <= y <= cy + 40):
+                holds.append( ((cx, cy), (cw, ch), frameCount) )
+                labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
+                break
