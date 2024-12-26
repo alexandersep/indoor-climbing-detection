@@ -43,14 +43,14 @@ def process_hands(frame, limb_list, contours, start_hold, end_hold):
             right_foot_hold = ((x, y), (w, h))
 
         (sx, sy) = start_hold
-        if (sx - 20 <= x <= sx + 20) and (sy - 20 <= y <= sy + 20):
+        if (sx - 50 <= x <= sx + 50) and (sy - 50 <= y <= sy + 50):
             if limb_name == 'LEFT_INDEX':
                 started_left = True
             if limb_name == 'RIGHT_INDEX':
                 started_right = True
 
         (ex, ey) = end_hold
-        if (ex - 20 <= x <= ex + 20) and (ey - 20 <= y <= ey + 20):
+        if (ex - 50 <= x <= ex + 50) and (ey - 50 <= y <= ey + 50):
             if limb_name == 'LEFT_INDEX':
                 finished_left = True
             if limb_name == 'RIGHT_INDEX':

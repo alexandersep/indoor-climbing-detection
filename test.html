@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Upload App</title>
+    <script>
+        async function uploadVideo() {
+            const videoInput = document.getElementById('videoFile');
+            if (videoInput.files.length === 0) {
+                alert('Please select a video file to upload.');
+                return;
+            }
+
+            const videoFile = videoInput.files[0];
+            console.log(videoFile);
+            console.log(typeof videoFile);
+            const formData = new FormData();
+            formData.append('video', videoFile);
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/vision-project/video-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('Video uploaded successfully!');
+                    document.getElementById('output').textContent = JSON.stringify(result, null, 2);
+                } else {
+                    alert('Failed to upload video.');
+                }
+            } catch (error) {
+                console.error('Error uploading video:', error);
+                alert('An error occurred while uploading the video.');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Upload Your Video</h1>
+    <form id="uploadForm" onsubmit="event.preventDefault(); uploadVideo();">
+        <label for="videoFile">Choose a video file:</label>
+        <input type="file" id="videoFile" name="video" accept="video/*" required>
+        <br><br>
+        <button type="submit">Upload Video</button>
+    </form>
+    <br>
+    <h2>Server Response</h2>
+    <pre id="output" style="background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd;"></pre>
+</body>
+</html>

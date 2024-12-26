@@ -4,3 +4,5 @@ numpy
 matplotlib
 mediapipe
 uuid
+moviepy
+python-dotenv
