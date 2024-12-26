@@ -52,6 +52,9 @@ def process_video(video_path, output_path):
         frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, contours, start_hold, end_hold)
         frameCount += 1
 
+        print("isStarted", isStarted)
+        print("isFinished", isFinished)
+
         if started and not finished:
             skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps)
             skip_holds(right_hand_holds, right_hand_hold, frameCount, first_frame_contours, "Right Hand", labels, fps)
@@ -64,6 +67,10 @@ def process_video(video_path, output_path):
             started = True
         if isFinishedLeft and isFinishedRight:
             finished = True
+
+        print("started", started)
+        print("finished", finshed)
+        print("=================================================================")
 
         # Show the combined result
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)

@@ -27,6 +27,6 @@ def convert_with_moviepy(input_path: str, output_path: str) -> None:
         output_path,
         codec="libx264",
         audio_codec="aac",
-        ffmpeg_params=['-crf','18', '-aspect', '9:16']
+        ffmpeg_params=['-crf','18', '-aspect', '9:16', '-s', '1080x1920']
     )
     clip.close()

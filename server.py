@@ -58,10 +58,10 @@ def video_upload():
             if not os.path.exists(processed_outputs_path):
                 os.makedirs(PROCESSED_VIDEOS_FOLDER_NAME, exist_ok=True)
             conversion_temp_path = os.path.join(TEMP_FOLDER_NAME, video.filename)
-            if not os.path.exists(original_file_path):
+            if not os.path.exists(conversion_temp_path):
                 os.makedirs(TEMP_FOLDER_NAME, exist_ok=True)
 
-            convert_with_moviepy(input_path=original_file_path, output_path=conversion_temp_path)
+            #convert_with_moviepy(input_path=original_file_path, output_path=conversion_temp_path)
 
             results = process_video(conversion_temp_path, processed_outputs_path, debug=False)
             print("Processing results:" + str(results))

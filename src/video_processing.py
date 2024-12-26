@@ -60,10 +60,12 @@ def process_video(video_path, output_path, debug):
         frameCount += 1
 
         # Update loading bar
-        progress = frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        loading_bar = f"[{int(progress * 50) * '='}{(50 - int(progress * 50)) * ' '}] {progress * 100:.2f}%"
-        sys.stdout.write(f"\rProcessing video: {loading_bar}")
-        sys.stdout.flush()
+        #progress = frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        #loading_bar = f"[{int(progress * 50) * '='}{(50 - int(progress * 50)) * ' '}] {progress * 100:.2f}%"
+        #sys.stdout.write(f"\rProcessing video: {loading_bar}")
+        #sys.stdout.flush()
+        print("isStarted", isStarted)
+        print("isFinished", isFinished)
 
         if started and not finished:
             skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps)
@@ -77,6 +79,10 @@ def process_video(video_path, output_path, debug):
             started = True
         if isFinishedLeft and isFinishedRight:
             finished = True
+
+        print("started", started)
+        print("finished", finished)
+        print("=================================================================")
 
         # Show the combined result
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
@@ -124,11 +130,12 @@ def process_video(video_path, output_path, debug):
 
     cv2.destroyAllWindows()
 
-    print("\nProcessing complete.")
+    print("\nProcessing complete.", result)
 
     return result
 
 def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps):
+    print("this is skip_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
         return
@@ -139,6 +146,7 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
         distance = dist(x, y, limb_x, limb_y)
         if distance <= 100:
             isSkip = True
+    print("this is skip_holds 2")
     if not isSkip:
         for hold_number, contour in enumerate(first_frame_contours):
             cx, cy, cw, ch = contour
@@ -146,6 +154,7 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
                 holds.append( ((cx, cy), (cw, ch), frameCount) )
                 labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
                 break
+    print("this is skip_holds 3")
 
 def setup_video_writer(video, filepath):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
