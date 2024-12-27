@@ -9,9 +9,9 @@ import uuid
 
 output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
-def process_video(video_path, output_path, debug):
+def process_video(video_path, output_path, socketioApi):
     print("1")
-    video, frame_width, frame_height, fps = load_video(video_path)
+    video, frame_width, frame_height, _, fps = load_video(video_path)
     if not video.isOpened():
         print(f"Failed to open video file: {video_path}")
         return
@@ -38,8 +38,9 @@ def process_video(video_path, output_path, debug):
     left_foot_holds = []
     right_foot_holds = []
 
-    PROCESSED_VIDEO_PATH = "resources/videos/output/" + str(uuid.uuid4()) + ".mp4";
-    video_writer = setup_video_writer(video, PROCESSED_VIDEO_PATH)
+    ANNOTATED_VIDEO_PATH = "temp/" + str(uuid.uuid4()) + ".mp4";
+    TEMP_FOLDER_NAME = "temp"
+    video_writer = setup_video_writer(video, ANNOTATED_VIDEO_PATH)
     processed_video_render_data = []
 
     print("4")
@@ -60,12 +61,14 @@ def process_video(video_path, output_path, debug):
         frameCount += 1
 
         # Update loading bar
-        #progress = frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         #loading_bar = f"[{int(progress * 50) * '='}{(50 - int(progress * 50)) * ' '}] {progress * 100:.2f}%"
         #sys.stdout.write(f"\rProcessing video: {loading_bar}")
         #sys.stdout.flush()
-        print("isStarted", isStarted)
-        print("isFinished", isFinished)
+        if socketioApi[0]:
+            progress = frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            socketioApi[0].emit("processing progress", progress, to=socketioApi[1])
+        # print("isStarted", isStarted)
+        # print("isFinished", isFinished)
 
         if started and not finished:
             skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps)
@@ -80,9 +83,9 @@ def process_video(video_path, output_path, debug):
         if isFinishedLeft and isFinishedRight:
             finished = True
 
-        print("started", started)
-        print("finished", finished)
-        print("=================================================================")
+        # print("started", started)
+        # print("finished", finished)
+        # print("=================================================================")
 
         # Show the combined result
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
@@ -99,9 +102,8 @@ def process_video(video_path, output_path, debug):
 
         if started and (finished and not prevFinished):
             distinct_file_name = str(uuid.uuid4()) + ".mp4"
-            distinct_path = output_path + "/" + distinct_file_name;
-            endFrame += 180
-            processed_video_render_data.append((distinct_path, beginFrame, endFrame))
+            # endFrame += 180
+            processed_video_render_data.append((distinct_file_name, beginFrame, endFrame))
             started = False
             prevStarted = False
             finished = False
@@ -120,13 +122,19 @@ def process_video(video_path, output_path, debug):
     video.release()
     video_writer.release()
 
-    for distinct_path, start, end in processed_video_render_data:
-        download_video_in_range(PROCESSED_VIDEO_PATH, distinct_path, start, end)
+    for distinct_file_name, start, end in processed_video_render_data:
+        distinct_output_path = output_path + "/" + distinct_file_name
+        distinct_temp_path = TEMP_FOLDER_NAME + "/" + distinct_file_name
+        download_video_in_range(ANNOTATED_VIDEO_PATH, distinct_temp_path, start, end)
+        convert_with_moviepy(input_path=distinct_temp_path, output_path=distinct_output_path)
+        if os.path.exists(distinct_temp_path):
+            print("Removing bad codec file: " + distinct_temp_path)
+            os.remove(distinct_temp_path)
+        
 
-    print("Removing processed file: " + PROCESSED_VIDEO_PATH)
-    # Remove temporary processed file after splitting into separate files.
-    if os.path.exists(PROCESSED_VIDEO_PATH):
-        os.remove(PROCESSED_VIDEO_PATH)
+    if os.path.exists(ANNOTATED_VIDEO_PATH):
+        print("Removing processed file: " + ANNOTATED_VIDEO_PATH)
+        os.remove(ANNOTATED_VIDEO_PATH)
 
     cv2.destroyAllWindows()
 
@@ -135,7 +143,7 @@ def process_video(video_path, output_path, debug):
     return result
 
 def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps):
-    print("this is skip_holds 1")
+    # print("this is skip_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
         return
@@ -146,7 +154,7 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
         distance = dist(x, y, limb_x, limb_y)
         if distance <= 100:
             isSkip = True
-    print("this is skip_holds 2")
+    # print("this is skip_holds 2")
     if not isSkip:
         for hold_number, contour in enumerate(first_frame_contours):
             cx, cy, cw, ch = contour
@@ -154,13 +162,13 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
                 holds.append( ((cx, cy), (cw, ch), frameCount) )
                 labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
                 break
-    print("this is skip_holds 3")
+    # print("this is skip_holds 3")
 
 def setup_video_writer(video, filepath):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = int(video.get(cv2.CAP_PROP_FPS))
-    width = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    height = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     out = cv2.VideoWriter(filepath, fourcc, fps, (width, height))
     return out

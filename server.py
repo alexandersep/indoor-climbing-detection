@@ -4,9 +4,11 @@ from flask_cors import CORS
 import uuid
 from src.video_processing import process_video
 from server_utils import *
+from src.utils import *
 from supabase import create_client
 from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
+from flask_socketio import SocketIO
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,6 +19,7 @@ TEMP_FOLDER_NAME = "temp"
 
 # Create a Flask application instance
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins=['*', "http://localhost:8081"])
 app.debug = True
 CORS(app)  # Enable CORS for all sources
 
@@ -34,9 +37,9 @@ supabase = create_client(
   )
 )
 # Define a route for video upload
-@app.route('/vision-project/video-upload', methods=['POST'])
-def video_upload():
-    print("Request initiated with payload: " + str(request.files))
+@app.route('/vision-project/video-upload/<socketid>', methods=['POST'])
+def video_upload(socketid):
+    print("Request initiated with payload: " + str(request.files) + " socketid: " + socketid)
     if 'video' not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
@@ -51,7 +54,7 @@ def video_upload():
     response = supabase.table("processed_videos").select("*").eq("owner", video.filename).execute()
     print("supabase response: " + str(response))
     if len(response.data) > 0:
-        return jsonify({"message": "Video already processed", "result": response.data})
+        return jsonify({"message": "Video already processed", "result": parse_video_data(response.data)})
     else:
         try:
             processed_outputs_path = os.path.join(PROCESSED_VIDEOS_FOLDER_NAME)
@@ -61,9 +64,9 @@ def video_upload():
             if not os.path.exists(conversion_temp_path):
                 os.makedirs(TEMP_FOLDER_NAME, exist_ok=True)
 
-            #convert_with_moviepy(input_path=original_file_path, output_path=conversion_temp_path)
+            # convert_with_moviepy(input_path=original_file_path, output_path=conversion_temp_path)
 
-            results = process_video(conversion_temp_path, processed_outputs_path, debug=False)
+            results = process_video(original_file_path, processed_outputs_path, (socketio, socketid))
             print("Processing results:" + str(results))
 
             for vid in results:
@@ -76,26 +79,25 @@ def video_upload():
                              "events": output_vid_events})
                     .execute()
                 )
-                print("Write results:" + str(response))
+                print("Write results:" + parse_video_data(response.data))
 
-            os.remove(conversion_temp_path);
+            # os.remove(conversion_temp_path);
+            return jsonify({"message": "Video processed successfully", "result": parse_video_data(response.data)})
         
         except Exception as e:
             os.remove(original_file_path)
             return jsonify({"error": str(e)}), 500
         
-        finally:
-            return jsonify({"message": "Video processed successfully", "result": response.data})
 
 @app.route('/vision-project/get-video/<filename>', methods=['GET'])
 def get_video(filename):
     try:
         # Ensure the file exists in the directory
-        if not os.path.exists(os.path.join(RAW_VIDEOS_FOLDER_NAME, filename)):
+        if not os.path.exists(os.path.join(PROCESSED_VIDEOS_FOLDER_NAME, filename)):
             return jsonify({"error": "File not found"}), 404
 
         # Serve the file from the specified directory
-        return send_from_directory(directory=RAW_VIDEOS_FOLDER_NAME,
+        return send_from_directory(directory=PROCESSED_VIDEOS_FOLDER_NAME,
                                    path=filename,
                                    mimetype='video/mp4',
                                    as_attachment=False

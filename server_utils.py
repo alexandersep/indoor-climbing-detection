@@ -6,19 +6,24 @@ load_dotenv()
 
 ROOT_URL = os.environ.get("ROOT_URL")
 
-def processed_video_data_to_labelled_json_object(data):
+def parse_video_data(data):
     transformed_data = [
             {
-                "videoUrl": ROOT_URL + "/vision-project/get-video/" + video[0],
+                "videoUrl": video["videoUrl"],
+                "created_at": video["created_at"],
+                "id": video["id"],
+                "owner": video["owner"],
                 "events": [
                     {
                         "limb": event[0],
                         "hold": event[1],
                         "timestamp": float(event[2])
-                    } for event in video[1]
-                ]
+                    } for event in video["events"]
+                ],
             } for video in data
         ]
+    
+    print("transformed_data:", transformed_data)
     return transformed_data
 
 def convert_with_moviepy(input_path: str, output_path: str) -> None:

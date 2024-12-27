@@ -72,7 +72,7 @@ def process_holds(frame):
 
     contours, _ = cv2.findContours(image=green_mask, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
     holds = []
-    for (circle_x, circle_y) in circle_list:
+    for (circle_x, circle_y, _) in circle_list:
         min_dist = float("inf")
         closest_contour = None
         is_contour = False
@@ -91,6 +91,10 @@ def process_holds(frame):
     for contour in contours:
         x, y = calculate_centroid(contour)
         cv2.circle(frame, (x, y), 5, (0, 255, 0), 3)
+        
+    # for x,y,size in circle_list:
+    #     cv2.circle(frame, (x, y), size, (255, 0, 150), 3)
+    #     print(x,y,size)
 
     contour_begin = calculate_hold(holds, isEnd=False)
     x, y, w, h = cv2.boundingRect(contour_begin)
@@ -119,10 +123,9 @@ def get_circles(frame):
     circle_list = []
     if circles is not None:
         unpacked_circles = np.round(circles[0, :]).astype("int")
-        for (x, y, _) in unpacked_circles:
-            found = (x, y)
+        for found in unpacked_circles:
             circle_list.append(found)
-    return circle_list
+    return unpacked_circles
 
 
 def calculate_hold(holds, isEnd):
