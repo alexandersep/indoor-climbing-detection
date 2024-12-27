@@ -71,10 +71,25 @@ def process_video(video_path, output_path, socketioApi):
         # print("isFinished", isFinished)
 
         if started and not finished:
-            skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps)
-            skip_holds(right_hand_holds, right_hand_hold, frameCount, first_frame_contours, "Right Hand", labels, fps)
-            skip_holds(left_foot_holds, left_foot_hold, frameCount, first_frame_contours, "Left Foot", labels, fps)
-            skip_holds(right_foot_holds, right_foot_hold, frameCount, first_frame_contours, "Right Foot", labels, fps)
+            skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps, start_hold, end_hold)
+            skip_holds(right_hand_holds, right_hand_hold, frameCount, first_frame_contours, "Right Hand", labels, fps, start_hold, end_hold)
+            skip_holds(left_foot_holds, left_foot_hold, frameCount, first_frame_contours, "Left Foot", labels, fps, start_hold, end_hold)
+            skip_holds(right_foot_holds, right_foot_hold, frameCount, first_frame_contours, "Right Foot", labels, fps, start_hold, end_hold)
+
+        for hold_number, contour in enumerate(first_frame_contours):
+            x, y, w, h = contour
+            (sx, sy) = start_hold
+            if (sx - 50 <= x <= sx + 50) and (sy - 50 <= y <= sy + 50):
+                #cv2.putText(frame, "           " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+                continue
+
+            (ex, ey) = end_hold
+            if (ex - 50 <= x <= ex + 50) and (ey - 50 <= y <= ey + 50):
+                #cv2.putText(frame, "         " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+                continue
+
+            #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 5)
+            cv2.putText(frame, "Hold " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
         isStartedLeft, isStartedRight = isStarted
         isFinishedLeft, isFinishedRight = isFinished
@@ -142,26 +157,45 @@ def process_video(video_path, output_path, socketioApi):
 
     return result
 
-def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps):
+def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps, start_hold, end_hold):
     # print("this is skip_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
         return
 
+
     isSkip = False
-    for left_hand in holds:
-        ((limb_x, limb_y), _, _) = left_hand
+    for limb in holds:
+        ((limb_x, limb_y), _, _) = limb
         distance = dist(x, y, limb_x, limb_y)
+
         if distance <= 100:
             isSkip = True
+
+    if isSkip:
+        return
+
     # print("this is skip_holds 2")
-    if not isSkip:
-        for hold_number, contour in enumerate(first_frame_contours):
-            cx, cy, cw, ch = contour
-            if (cx - 40 <= x <= cx + 40) and (cy - 40 <= y <= cy + 40):
-                holds.append( ((cx, cy), (cw, ch), frameCount) )
-                labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
-                break
+    for hold_number, contour in enumerate(first_frame_contours):
+        cx, cy, cw, ch = contour
+        if (cx - 40 <= x <= cx + 40) and (cy - 40 <= y <= cy + 40):
+            print("other")
+            holds.append( ((cx, cy), (cw, ch), frameCount) )
+            (sx, sy) = start_hold
+            if (sx - 40 <= cx <= sx + 40) and (sy - 40 <= cy <= sy + 40): # threshold so high because hold 7 is start hold and it already exists in list, not good
+                print("start")
+                labels.append( (limb_name, "Start Hold", str(frameCount / fps)) )
+                isSkip = True
+                continue
+
+            (ex, ey) = end_hold
+            if (ex - 40 <= cx <= ex + 40) and (ey - 40 <= cy <= ey + 40):
+                print("end")
+                labels.append( (limb_name, "End Hold", str(frameCount / fps)) )
+                isSkip = True
+                continue
+            labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
+            break
     # print("this is skip_holds 3")
 
 def setup_video_writer(video, filepath):
