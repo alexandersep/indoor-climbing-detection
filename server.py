@@ -39,7 +39,7 @@ supabase = create_client(
 # Define a route for video upload
 @app.route('/vision-project/video-upload/<socketid>', methods=['POST'])
 def video_upload(socketid):
-    print("Request initiated with payload: " + str(request.files) + " socketid: " + socketid)
+    print("Request initiated with payload: " + str(request.files) + " socketid: " + str(socketid))
     if 'video' not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
@@ -79,7 +79,6 @@ def video_upload(socketid):
                              "events": output_vid_events})
                     .execute()
                 )
-                print("Write results:" + parse_video_data(response.data))
 
             # os.remove(conversion_temp_path);
             return jsonify({"message": "Video processed successfully", "result": parse_video_data(response.data)})

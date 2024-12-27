@@ -23,7 +23,6 @@ def parse_video_data(data):
             } for video in data
         ]
     
-    print("transformed_data:", transformed_data)
     return transformed_data
 
 def convert_with_moviepy(input_path: str, output_path: str) -> None:
