@@ -1,6 +1,5 @@
 import cv2
 import os
-import sys
 from src.hold_processing import *
 from src.body_processing import *
 from src.opticalflow_processing import *
@@ -10,15 +9,15 @@ import uuid
 output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
 def process_video(video_path, output_path, socketioApi):
-    print("1")
+    printd("1")
     video, frame_width, frame_height, _, fps = load_video(video_path)
     if not video.isOpened():
-        print(f"Failed to open video file: {video_path}")
+        printd(f"Failed to open video file: {video_path}")
         return
 
-    print("2")
+    printd("2")
     mp_pose, pose, mp_drawing = pose_init(min_detection_confidence=0.5)
-    print("3")
+    printd("3")
 
     frameCount = 0
     started = False
@@ -43,7 +42,7 @@ def process_video(video_path, output_path, socketioApi):
     video_writer = setup_video_writer(video, ANNOTATED_VIDEO_PATH)
     processed_video_render_data = []
 
-    print("4")
+    printd("4")
     while video.isOpened():
         success, frame = video.read()
         if not success:
@@ -67,8 +66,8 @@ def process_video(video_path, output_path, socketioApi):
         if socketioApi[0]:
             progress = frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             socketioApi[0].emit("processing progress", progress, to=socketioApi[1])
-        # print("isStarted", isStarted)
-        # print("isFinished", isFinished)
+        # printd("isStarted", isStarted)
+        # printd("isFinished", isFinished)
 
         if started and not finished:
             skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps, start_hold, end_hold)
@@ -98,9 +97,9 @@ def process_video(video_path, output_path, socketioApi):
         if isFinishedLeft and isFinishedRight:
             finished = True
 
-        # print("started", started)
-        # print("finished", finished)
-        # print("=================================================================")
+        # printd("started", started)
+        # printd("finished", finished)
+        # printd("=================================================================")
 
         # Show the combined result
         cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
@@ -143,22 +142,22 @@ def process_video(video_path, output_path, socketioApi):
         download_video_in_range(ANNOTATED_VIDEO_PATH, distinct_temp_path, start, end)
         convert_with_moviepy(input_path=distinct_temp_path, output_path=distinct_output_path)
         if os.path.exists(distinct_temp_path):
-            print("Removing bad codec file: " + distinct_temp_path)
+            printd("Removing bad codec file: " + distinct_temp_path)
             os.remove(distinct_temp_path)
         
 
     if os.path.exists(ANNOTATED_VIDEO_PATH):
-        print("Removing processed file: " + ANNOTATED_VIDEO_PATH)
+        printd("Removing processed file: " + ANNOTATED_VIDEO_PATH)
         os.remove(ANNOTATED_VIDEO_PATH)
 
     cv2.destroyAllWindows()
 
-    print("\nProcessing complete.", result)
+    printd("\nProcessing complete.", result)
 
     return result
 
 def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps, start_hold, end_hold):
-    # print("this is skip_holds 1")
+    # printd("this is skip_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
         return
@@ -175,28 +174,28 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
     if isSkip:
         return
 
-    # print("this is skip_holds 2")
+    # printd("this is skip_holds 2")
     for hold_number, contour in enumerate(first_frame_contours):
         cx, cy, cw, ch = contour
         if (cx - 40 <= x <= cx + 40) and (cy - 40 <= y <= cy + 40):
-            print("other")
+            printd("other")
             holds.append( ((cx, cy), (cw, ch), frameCount) )
             (sx, sy) = start_hold
             if (sx - 40 <= cx <= sx + 40) and (sy - 40 <= cy <= sy + 40): # threshold so high because hold 7 is start hold and it already exists in list, not good
-                print("start")
+                printd("start")
                 labels.append( (limb_name, "Start Hold", str(frameCount / fps)) )
                 isSkip = True
                 continue
 
             (ex, ey) = end_hold
             if (ex - 40 <= cx <= ex + 40) and (ey - 40 <= cy <= ey + 40):
-                print("end")
+                printd("end")
                 labels.append( (limb_name, "End Hold", str(frameCount / fps)) )
                 isSkip = True
                 continue
             labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
             break
-    # print("this is skip_holds 3")
+    # printd("this is skip_holds 3")
 
 def setup_video_writer(video, filepath):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')

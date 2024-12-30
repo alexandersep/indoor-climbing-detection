@@ -94,7 +94,7 @@ def process_holds(frame):
         
     # for x,y,size in circle_list:
     #     cv2.circle(frame, (x, y), size, (255, 0, 150), 3)
-    #     print(x,y,size)
+    #     printd(x,y,size)
 
     contour_begin = calculate_hold(holds, isEnd=False)
     x, y, w, h = cv2.boundingRect(contour_begin)

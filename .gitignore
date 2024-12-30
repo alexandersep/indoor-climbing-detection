@@ -3,6 +3,8 @@ venv/*
 resources/videos/*.mp4
 resources/videos/output/*.mp4
 .env
-raw_videos
-processed_videos
-temp
+raw_videos/*
+processed_videos/*
+temp/*
+enviroment/*
+*.sock

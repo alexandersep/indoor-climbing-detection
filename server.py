@@ -19,7 +19,7 @@ TEMP_FOLDER_NAME = "temp"
 
 # Create a Flask application instance
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins=['*', "http://localhost:8081"])
+socketio = SocketIO(app, cors_allowed_origins=["https://climbing.oskarmroz.com"])
 app.debug = True
 CORS(app)  # Enable CORS for all sources
 
@@ -27,7 +27,7 @@ CORS(app)  # Enable CORS for all sources
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_ROLE_KEY = os.environ.get("SUPABASE_ROLE_KEY")
 ROOT_URL = os.environ.get("ROOT_URL")
-
+NGNINX_PROXY_LOCATION = os.environ.get("NGNINX_PROXY_LOCATION")
 supabase = create_client(
   SUPABASE_URL, 
   SUPABASE_ROLE_KEY,
@@ -37,9 +37,9 @@ supabase = create_client(
   )
 )
 # Define a route for video upload
-@app.route('/vision-project/video-upload/<socketid>', methods=['POST'])
+@app.route( NGNINX_PROXY_LOCATION + '/video-upload/<socketid>', methods=['POST'])
 def video_upload(socketid):
-    print("Request initiated with payload: " + str(request.files) + " socketid: " + str(socketid))
+    printd("Request initiated with payload: " + str(request.files) + " socketid: " + str(socketid))
     if 'video' not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
@@ -52,7 +52,7 @@ def video_upload(socketid):
         video.save(original_file_path)
 
     response = supabase.table("processed_videos").select("*").eq("owner", video.filename).execute()
-    print("supabase response: " + str(response))
+    printd("supabase response: " + str(response))
     if len(response.data) > 0:
         return jsonify({"message": "Video already processed", "result": parse_video_data(response.data)})
     else:
@@ -67,14 +67,14 @@ def video_upload(socketid):
             # convert_with_moviepy(input_path=original_file_path, output_path=conversion_temp_path)
 
             results = process_video(original_file_path, processed_outputs_path, (socketio, socketid))
-            print("Processing results:" + str(results))
+            printd("Processing results:" + str(results))
 
             for vid in results:
                 output_vid_name = vid[0]
                 output_vid_events = vid[1]
                 response = (
                     supabase.table("processed_videos")
-                    .insert({"videoUrl": ROOT_URL + "/vision-project/get-video/" + output_vid_name, 
+                    .insert({"videoUrl": ROOT_URL + NGNINX_PROXY_LOCATION + "/get-video/" + output_vid_name, 
                              "owner": video.filename, 
                              "events": output_vid_events})
                     .execute()
@@ -88,7 +88,7 @@ def video_upload(socketid):
             return jsonify({"error": str(e)}), 500
         
 
-@app.route('/vision-project/get-video/<filename>', methods=['GET'])
+@app.route(NGNINX_PROXY_LOCATION + '/get-video/<filename>', methods=['GET'])
 def get_video(filename):
     try:
         # Ensure the file exists in the directory
@@ -103,6 +103,10 @@ def get_video(filename):
                                    )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route( NGNINX_PROXY_LOCATION + '/', methods=['GET'])
+def get_test():
+    return jsonify({"message": "Successfully Connected"})
 
 # Start the server
 if __name__ == '__main__':

@@ -21,3 +21,4 @@ opencv-python>=4.5
 supabase
 Flask-SocketIO
 Flask[async]
+gunicorn
