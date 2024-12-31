@@ -5,19 +5,17 @@ from src.body_processing import *
 from src.opticalflow_processing import *
 from src.utils import *
 import uuid
+from jobs.processing_jobs import update_processing_job_progress
 
 output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
-def process_video(video_path, output_path, socketioApi):
-    printd("1")
+def process_video(video_path, output_path, jobs_api):
     video, frame_width, frame_height, _, fps = load_video(video_path)
     if not video.isOpened():
         printd(f"Failed to open video file: {video_path}")
         return
 
-    printd("2")
     mp_pose, pose, mp_drawing = pose_init(min_detection_confidence=0.5)
-    printd("3")
 
     frameCount = 0
     started = False
@@ -41,8 +39,9 @@ def process_video(video_path, output_path, socketioApi):
     TEMP_FOLDER_NAME = "temp"
     video_writer = setup_video_writer(video, ANNOTATED_VIDEO_PATH)
     processed_video_render_data = []
+    
+    last_submitted_progress_update = 0
 
-    printd("4")
     while video.isOpened():
         success, frame = video.read()
         if not success:
@@ -63,9 +62,11 @@ def process_video(video_path, output_path, socketioApi):
         #loading_bar = f"[{int(progress * 50) * '='}{(50 - int(progress * 50)) * ' '}] {progress * 100:.2f}%"
         #sys.stdout.write(f"\rProcessing video: {loading_bar}")
         #sys.stdout.flush()
-        if socketioApi[0]:
-            progress = frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            socketioApi[0].emit("processing progress", progress, to=socketioApi[1])
+        progress_percentage = (frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))) * 100
+        supabase, job_id = jobs_api
+        if round(progress_percentage) % 10 == 0 and last_submitted_progress_update != round(progress_percentage):
+            update_processing_job_progress(supabase, job_id, round(progress_percentage))
+            last_submitted_progress_update = round(progress_percentage)
         # printd("isStarted", isStarted)
         # printd("isFinished", isFinished)
 

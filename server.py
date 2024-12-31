@@ -14,21 +14,22 @@ from jobs.processing_jobs import *
 # Load environment variables from .env file
 load_dotenv()
 
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_ROLE_KEY = os.environ.get("SUPABASE_ROLE_KEY")
+ROOT_URL = os.environ.get("ROOT_URL")
+NGNINX_PROXY_LOCATION = os.environ.get("NGNINX_PROXY_LOCATION")
+
 PROCESSED_VIDEOS_FOLDER_NAME = "processed_videos"
 RAW_VIDEOS_FOLDER_NAME = "raw_videos"
 TEMP_FOLDER_NAME = "temp"
 
 # Create a Flask application instance
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*") # https://climbing.oskarmroz.com
+socketio = SocketIO(app, cors_allowed_origins='*', path=NGNINX_PROXY_LOCATION+"/") # https://climbing.oskarmroz.com
 app.debug = True
 CORS(app)  # Enable CORS for all sources
 
 # Initialize the Supabase client
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_ROLE_KEY = os.environ.get("SUPABASE_ROLE_KEY")
-ROOT_URL = os.environ.get("ROOT_URL")
-NGNINX_PROXY_LOCATION = os.environ.get("NGNINX_PROXY_LOCATION")
 supabase = create_client(
     SUPABASE_URL,
     SUPABASE_ROLE_KEY,
@@ -59,22 +60,18 @@ def video_upload(socketid):
         os.makedirs(RAW_VIDEOS_FOLDER_NAME, exist_ok=True)
         video.save(original_file_path)
 
-    # 1. Create a job record in Supabase
     insert_response = (
         supabase.table("jobs")
         .insert(
             {
                 "status": "processing",
                 "owner": video.filename,
-                # "completed_date": None  # If you want to be explicit, but can omit it
             }
         )
         .execute()
     )
-    print(insert_response)
-    job_id = insert_response.data[0]["job_id"]  # or your job primary key
+    job_id = insert_response.data[0]["job_id"]
 
-    # 2. Spin up a background thread to do the processing
     processed_outputs_path = os.path.join(PROCESSED_VIDEOS_FOLDER_NAME)
     if not os.path.exists(processed_outputs_path):
         os.makedirs(PROCESSED_VIDEOS_FOLDER_NAME, exist_ok=True)
@@ -95,13 +92,23 @@ def video_upload(socketid):
         daemon=True,
     )
     worker_thread.start()
+    
 
-    # 3. Return a response immediately
     return (
-        jsonify({"message": "Job created and processing started.", "job_id": job_id}),
+        jsonify({"message": "Job created and processing started.", "job_id": job_id, "thread_id": worker_thread.native_id}),
         202,
     )
 
+
+@app.route(NGNINX_PROXY_LOCATION + "/get-video-from-job/<job_id>", methods=["GET"])
+def get_video_from_job(job_id):
+    try:
+        result = get_processing_job_progress(supabase=supabase, job_id=job_id)
+        printd(result)
+
+        return jsonify({"message": "Progress retrieved", "progress": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route(NGNINX_PROXY_LOCATION + "/get-video/<filename>", methods=["GET"])
 def get_video(filename):

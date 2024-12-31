@@ -1,4 +1,5 @@
 import datetime
+import threading
 from flask_cors import CORS
 from src.video_processing import process_video
 from server_utils import *
@@ -12,14 +13,12 @@ def background_video_processing(
     processed_outputs_path,
     supabase,
     ROOT_URL,
-    NGNINX_PROXY_LOCATION,
-    socketio,
-    socketid,
+    NGNINX_PROXY_LOCATION
 ):
     try:
         # 1. Long-running video processing
         results = process_video(
-            original_file_path, processed_outputs_path, (socketio, socketid)
+            original_file_path, processed_outputs_path, jobs_api=(supabase, job_id)
         )
 
         # 2. Insert processed results into `processed_videos`
@@ -55,3 +54,20 @@ def background_video_processing(
                 "completed_at": datetime.datetime.now().isoformat(),
             }
         ).eq("job_id", job_id).execute()
+
+
+def update_processing_job_progress(supabase, job_id, progress):
+    return (
+        supabase.table("jobs")
+        .update(
+            {
+                "processing_progress": progress,
+            }
+        )
+        .eq("job_id", job_id)
+        .execute()
+    )
+
+
+def get_processing_job_progress(supabase, job_id):
+    return supabase.table("jobs").select("*").eq("job_id", job_id).execute()
