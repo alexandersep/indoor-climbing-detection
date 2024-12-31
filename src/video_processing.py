@@ -102,9 +102,9 @@ def process_video(video_path, output_path, socketioApi):
         # printd("=================================================================")
 
         # Show the combined result
-        cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
+        # cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
         # cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
-        cv2.imshow('Combined Frame', frame)
+        # cv2.imshow('Combined Frame', frame)
         video_writer.write(frame)
 
         if started and prevStarted:
