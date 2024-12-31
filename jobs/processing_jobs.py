@@ -54,20 +54,3 @@ def background_video_processing(
                 "completed_at": datetime.datetime.now().isoformat(),
             }
         ).eq("job_id", job_id).execute()
-
-
-def update_processing_job_progress(supabase, job_id, progress):
-    return (
-        supabase.table("jobs")
-        .update(
-            {
-                "processing_progress": progress,
-            }
-        )
-        .eq("job_id", job_id)
-        .execute()
-    )
-
-
-def get_processing_job_progress(supabase, job_id):
-    return supabase.table("jobs").select("*").eq("job_id", job_id).execute()

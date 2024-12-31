@@ -1,15 +1,13 @@
 import os
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
-from src.video_processing import process_video
 from server_utils import *
 from src.utils import *
 from supabase import create_client
 from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
-from flask_socketio import SocketIO
 import threading
-from jobs.processing_jobs import *
+from jobs.processing_jobs import background_video_processing
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,7 +23,6 @@ TEMP_FOLDER_NAME = "temp"
 
 # Create a Flask application instance
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins='*', path=NGNINX_PROXY_LOCATION+"/") # https://climbing.oskarmroz.com
 app.debug = True
 CORS(app)  # Enable CORS for all sources
 
@@ -40,13 +37,11 @@ supabase = create_client(
 )
 
 
-@app.route(NGNINX_PROXY_LOCATION + "/video-upload/<socketid>", methods=["POST"])
-def video_upload(socketid):
+@app.route(NGNINX_PROXY_LOCATION + "/video-upload", methods=["POST"])
+def video_upload():
     printd(
         "Request initiated with payload: "
         + str(request.files)
-        + " socketid: "
-        + str(socketid)
     )
 
     if "video" not in request.files:
@@ -85,9 +80,7 @@ def video_upload(socketid):
             processed_outputs_path,
             supabase,
             ROOT_URL,
-            NGNINX_PROXY_LOCATION,
-            socketio,
-            socketid,
+            NGNINX_PROXY_LOCATION
         ),
         daemon=True,
     )
@@ -103,7 +96,7 @@ def video_upload(socketid):
 @app.route(NGNINX_PROXY_LOCATION + "/get-video-from-job/<job_id>", methods=["GET"])
 def get_video_from_job(job_id):
     try:
-        result = get_processing_job_progress(supabase=supabase, job_id=job_id)
+        result = supabase.table("jobs").select("*").eq("job_id", job_id).execute()
         printd(result)
 
         return jsonify({"message": "Progress retrieved", "progress": result})

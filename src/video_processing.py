@@ -5,7 +5,6 @@ from src.body_processing import *
 from src.opticalflow_processing import *
 from src.utils import *
 import uuid
-from jobs.processing_jobs import update_processing_job_progress
 
 output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
@@ -65,7 +64,7 @@ def process_video(video_path, output_path, jobs_api):
         progress_percentage = (frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))) * 100
         supabase, job_id = jobs_api
         if round(progress_percentage) % 10 == 0 and last_submitted_progress_update != round(progress_percentage):
-            update_processing_job_progress(supabase, job_id, round(progress_percentage))
+            supabase.table("jobs").update({ "processing_progress": round(progress_percentage)}).eq("job_id", job_id).execute()
             last_submitted_progress_update = round(progress_percentage)
         # printd("isStarted", isStarted)
         # printd("isFinished", isFinished)
