@@ -16,12 +16,10 @@ def background_video_processing(
     NGNINX_PROXY_LOCATION
 ):
     try:
-        # 1. Long-running video processing
         results = process_video(
             original_file_path, processed_outputs_path, jobs_api=(supabase, job_id)
         )
 
-        # 2. Insert processed results into `processed_videos`
         for vid in results:
             output_vid_name = vid[0]
             output_vid_events = vid[1]
@@ -36,8 +34,6 @@ def background_video_processing(
                 }
             ).execute()
 
-        # 3. Mark the job as “completed” in the jobs table
-        #    including a datetime stamp (e.g., UTC)
         supabase.table("jobs").update(
             {
                 "status": "completed",
