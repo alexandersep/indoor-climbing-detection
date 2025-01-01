@@ -63,7 +63,7 @@ def process_video(video_path, output_path, jobs_api):
         #sys.stdout.flush()
         progress_percentage = (frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))) * 100
         supabase, job_id = jobs_api
-        if round(progress_percentage) % 10 == 0 and last_submitted_progress_update != round(progress_percentage):
+        if round(progress_percentage) % 5 == 0 and last_submitted_progress_update != round(progress_percentage):
             supabase.table("jobs").update({ "processing_progress": round(progress_percentage)}).eq("job_id", job_id).execute()
             last_submitted_progress_update = round(progress_percentage)
         # printd("isStarted", isStarted)
@@ -152,7 +152,7 @@ def process_video(video_path, output_path, jobs_api):
 
     cv2.destroyAllWindows()
 
-    printd("\nProcessing complete.", result)
+    printd("\nProcessing complete." + str(result))
 
     return result
 

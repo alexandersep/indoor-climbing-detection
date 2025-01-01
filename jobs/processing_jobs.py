@@ -50,7 +50,7 @@ def background_video_processing(
         supabase.table("jobs").update(
             {
                 "status": "failed",
-                "error_message": str(e),
+                "message": str(e),
                 "completed_at": datetime.datetime.now().isoformat(),
             }
         ).eq("job_id", job_id).execute()

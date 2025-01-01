@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, send_from_directory, request
+from flask import Flask, jsonify, send_from_directory, request, Response
 from flask_cors import CORS
 from server_utils import *
 from src.utils import *
@@ -8,6 +8,7 @@ from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
 import threading
 from jobs.processing_jobs import background_video_processing
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,24 +31,34 @@ CORS(app)  # Enable CORS for all sources
 supabase = create_client(
     SUPABASE_URL,
     SUPABASE_ROLE_KEY,
-    options=ClientOptions(
-        auto_refresh_token=True,
-        persist_session=True,
-    ),
+    options=ClientOptions(auto_refresh_token=True, persist_session=True),
 )
 
 
 @app.route(NGNINX_PROXY_LOCATION + "/video-upload", methods=["POST"])
 def video_upload():
-    printd(
-        "Request initiated with payload: "
-        + str(request.files)
-    )
+    printd("Request initiated with payload: " + str(request.files))
 
     if "video" not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
     video = request.files["video"]
+
+    alreadyProcessedResponse = (
+        supabase.table("processed_videos")
+        .select("*")
+        .eq("owner", video.filename)
+        .execute()
+    )
+    if alreadyProcessedResponse.data and len(alreadyProcessedResponse.data) > 0:
+        return jsonify(
+            {
+                "message": "Video has already been processed",
+                "already_processed": True,
+                "data": parse_video_data(alreadyProcessedResponse.data),
+            }
+        )
+
     original_file_path = os.path.join(RAW_VIDEOS_FOLDER_NAME, video.filename)
 
     # If video doesn't exist locally, save it
@@ -80,28 +91,46 @@ def video_upload():
             processed_outputs_path,
             supabase,
             ROOT_URL,
-            NGNINX_PROXY_LOCATION
+            NGNINX_PROXY_LOCATION,
         ),
         daemon=True,
     )
     worker_thread.start()
-    
 
     return (
-        jsonify({"message": "Job created and processing started.", "job_id": job_id, "thread_id": worker_thread.native_id}),
+        jsonify(
+            {
+                "message": "Job created and processing started.",
+                "job_id": job_id,
+                "thread_id": worker_thread.native_id,
+                "already_processed": False,
+                "data": None,
+            }
+        ),
         202,
     )
 
 
-@app.route(NGNINX_PROXY_LOCATION + "/get-video-from-job/<job_id>", methods=["GET"])
-def get_video_from_job(job_id):
+@app.route(NGNINX_PROXY_LOCATION + "/get-job/<job_id>", methods=["GET"])
+def get_job(job_id):
     try:
-        result = supabase.table("jobs").select("*").eq("job_id", job_id).execute()
-        printd(result)
-
-        return jsonify({"message": "Progress retrieved", "progress": result})
+        response = supabase.table("jobs").select("*").eq("job_id", job_id).execute()
+        return jsonify(response.data[0])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route(NGNINX_PROXY_LOCATION + "/get-videos-from-owner", methods=["GET"])
+def get_videos_from_owner():
+    owner = request.args.get('owner')
+    try:
+        response = (
+            supabase.table("processed_videos").select("*").eq("owner", owner).execute()
+        )
+        return jsonify(parse_video_data(response.data))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route(NGNINX_PROXY_LOCATION + "/get-video/<filename>", methods=["GET"])
 def get_video(filename):
