@@ -20,6 +20,7 @@ def process_video(video_path, output_path, jobs_api):
     currentFrameCount = 0
     frameCount = 0
     started = False
+    startedFirst = False
     finished = False
     beginFrame = 0
     endFrame = 0
@@ -117,10 +118,11 @@ def process_video(video_path, output_path, jobs_api):
         # cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
         # cv2.imshow('Combined Frame', frame)
         video_writer.write(frame)
-
-        if started and prevStarted:
-            beginFrame = frameCount - fps
+        # 
+        if started and prevStarted and not startedFirst:
+            beginFrame = frameCount
             currentFrameCount = 0
+            startedFirst = True
         if finished and prevFinished:
             endFrame = frameCount
         prevStarted = isStartedLeft and isStartedRight
@@ -134,6 +136,7 @@ def process_video(video_path, output_path, jobs_api):
             prevStarted = False
             finished = False
             prevFinished = False
+            startedFirst = False
 
             result.append( (distinct_file_name, labels) )
             labels = []
