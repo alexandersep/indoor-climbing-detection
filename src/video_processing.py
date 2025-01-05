@@ -16,6 +16,7 @@ def process_video(video_path, output_path, jobs_api):
 
     mp_pose, pose, mp_drawing = pose_init(min_detection_confidence=0.5)
 
+    currentFrameCount = 0
     frameCount = 0
     started = False
     finished = False
@@ -70,10 +71,11 @@ def process_video(video_path, output_path, jobs_api):
         # printd("isFinished", isFinished)
 
         if started and not finished:
-            skip_holds(left_hand_holds, left_hand_hold, frameCount, first_frame_contours, "Left Hand", labels, fps, start_hold, end_hold)
-            skip_holds(right_hand_holds, right_hand_hold, frameCount, first_frame_contours, "Right Hand", labels, fps, start_hold, end_hold)
-            skip_holds(left_foot_holds, left_foot_hold, frameCount, first_frame_contours, "Left Foot", labels, fps, start_hold, end_hold)
-            skip_holds(right_foot_holds, right_foot_hold, frameCount, first_frame_contours, "Right Foot", labels, fps, start_hold, end_hold)
+            currentFrameCount += 1
+            skip_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contours, "Left Hand", labels, fps, start_hold, end_hold)
+            skip_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contours, "Right Hand", labels, fps, start_hold, end_hold)
+            skip_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contours, "Left Foot", labels, fps, start_hold, end_hold)
+            skip_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contours, "Right Foot", labels, fps, start_hold, end_hold)
 
         for hold_number, contour in enumerate(first_frame_contours):
             x, y, w, h = contour
@@ -108,9 +110,9 @@ def process_video(video_path, output_path, jobs_api):
         video_writer.write(frame)
 
         if started and prevStarted:
-            beginFrame = frameCount
+            beginFrame = currentFrameCount
         if finished and prevFinished:
-            endFrame = frameCount
+            endFrame = currentFrameCount
         prevStarted = isStartedLeft and isStartedRight
         prevFinished = isFinishedLeft and isFinishedRight
 
@@ -129,6 +131,8 @@ def process_video(video_path, output_path, jobs_api):
             right_hand_holds = []
             left_foot_holds = []
             right_foot_holds = []
+
+            currentFrameCount = 0 # Reset the currentFrameCount
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
