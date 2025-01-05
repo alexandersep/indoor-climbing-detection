@@ -80,11 +80,13 @@ def process_video(video_path, output_path, jobs_api):
         # printd("isFinished", isFinished)
 
         if started and not finished:
-            currentFrameCount += 1
+            if not startedFirst:
+                currentFrameCount = 0
             skip_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Hand", labels, fps, start_hold, end_hold)
             skip_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Hand", labels, fps, start_hold, end_hold)
             skip_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", labels, fps, start_hold, end_hold)
             skip_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", labels, fps, start_hold, end_hold)
+            currentFrameCount += 1
 
         for hold_number, boundng_box in enumerate(first_frame_contour_bounding_boxes):
             x, y, w, h = boundng_box
@@ -105,7 +107,6 @@ def process_video(video_path, output_path, jobs_api):
         isFinishedLeft, isFinishedRight = isFinished
         if isStartedLeft and isStartedRight:
             started = True
-            currentFrameCount = 0
         if isFinishedLeft and isFinishedRight:
             finished = True
 
@@ -121,7 +122,6 @@ def process_video(video_path, output_path, jobs_api):
         # 
         if started and prevStarted and not startedFirst:
             beginFrame = frameCount
-            currentFrameCount = 0
             startedFirst = True
         if finished and prevFinished:
             endFrame = frameCount
