@@ -119,10 +119,9 @@ def process_video(video_path, output_path, jobs_api):
         video_writer.write(frame)
 
         if started and prevStarted:
-            beginFrame = frameCount
+            beginFrame = frameCount - fps
             currentFrameCount = 0
         if finished and prevFinished:
-            endFrame = frameCount
             endFrame = frameCount
         prevStarted = isStartedLeft and isStartedRight
         prevFinished = isFinishedLeft and isFinishedRight
