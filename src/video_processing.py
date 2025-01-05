@@ -161,9 +161,9 @@ def process_video(video_path, output_path, jobs_api):
             #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 5)
             cv2.putText(frame, "Hold " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
-        cv2.imshow('Combined Frame', frame)
+        # cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
+        # cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
+        # cv2.imshow('Combined Frame', frame)
         video_writer.write(frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
