@@ -62,7 +62,7 @@ def process_holds(frame):
     circle_list = get_circles(frame)
     # Green mask processing
     hsv_image = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    lower_green = np.array([35, 50, 50])
+    lower_green = np.array([35, 40, 50])
     upper_green = np.array([85, 255, 255])
     green_mask = cv2.inRange(hsv_image, lower_green, upper_green)
 
@@ -88,25 +88,12 @@ def process_holds(frame):
         if is_contour:
             holds.append(((circle_x, circle_y), closest_contour))
 
-    for contour in contours:
-        x, y = calculate_centroid(contour)
-        cv2.circle(frame, (x, y), 5, (0, 255, 0), 3)
-        
-    # for x,y,size in circle_list:
-    #     cv2.circle(frame, (x, y), size, (255, 0, 150), 3)
-    #     printd(x,y,size)
-
     contour_begin = calculate_hold(holds, isEnd=False)
-    x, y, w, h = cv2.boundingRect(contour_begin)
-    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
-    cv2.putText(frame, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-
+    x, y = cv2.boundingRect(contour_begin)[:2]
     start_hold = (x,y)
 
     contour_end = calculate_hold(holds, isEnd=True)
-    x, y, w, h = cv2.boundingRect(contour_end)
-    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 5)
-    cv2.putText(frame, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    x, y = cv2.boundingRect(contour_end)[:2]
 
     end_hold = (x, y)
 

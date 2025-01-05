@@ -28,8 +28,6 @@ def process_video(video_path, output_path, jobs_api):
     prevFinished = False
 
     first_frame_contour_bounding_boxes = []
-    first_frame_contours = []
-    isFirstFrame = True
     result = []
     labels = []
     left_hand_holds = []
@@ -47,25 +45,22 @@ def process_video(video_path, output_path, jobs_api):
     processed_video_render_data = []
     
     last_submitted_progress_update = 0
+    contours, start_hold, end_hold = None, None, None
 
     while video.isOpened():
         success, frame = video.read()
         if not success:
             break
-
-        contours, start_hold, end_hold = process_holds(frame)
-        if isFirstFrame:
-            isFirstFrame = False
+        if frameCount == 0:
+            contours, start_hold, end_hold = process_holds(frame)
             for contour in contours:
                 cx, cy, cw, ch = cv2.boundingRect(contour)
                 first_frame_contour_bounding_boxes.append((cx, cy, cw, ch))
 
             first_frame_contour_bounding_boxes = sorted(first_frame_contour_bounding_boxes, key=lambda x: x[1], reverse=True)
 
-            first_frame_contours = contours
-
         limb_list = process_skeleton(frame, mp_pose, pose, mp_drawing)
-        frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, first_frame_contours, start_hold, end_hold)
+        frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, contours, start_hold, end_hold)
         frameCount += 1
 
         # Update loading bar
@@ -90,16 +85,16 @@ def process_video(video_path, output_path, jobs_api):
             skip_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", labels, fps, start_hold, end_hold)
             skip_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", labels, fps, start_hold, end_hold)
 
-        for hold_number, contour in enumerate(first_frame_contour_bounding_boxes):
-            x, y, w, h = contour
+        for hold_number, boundng_box in enumerate(first_frame_contour_bounding_boxes):
+            x, y, w, h = boundng_box
             (sx, sy) = start_hold
             if (sx - 50 <= x <= sx + 50) and (sy - 50 <= y <= sy + 50):
-                #cv2.putText(frame, "           " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+                cv2.putText(frame, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
                 continue
 
             (ex, ey) = end_hold
             if (ex - 50 <= x <= ex + 50) and (ey - 50 <= y <= ey + 50):
-                #cv2.putText(frame, "         " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+                cv2.putText(frame, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
                 continue
 
             #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 5)
