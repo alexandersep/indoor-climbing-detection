@@ -128,6 +128,7 @@ def process_video(video_path, output_path, jobs_api):
             currentFrameCount = 0
         if finished and prevFinished:
             endFrame = frameCount
+            endFrame = frameCount
         prevStarted = isStartedLeft and isStartedRight
         prevFinished = isFinishedLeft and isFinishedRight
 
