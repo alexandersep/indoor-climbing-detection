@@ -8,3 +8,4 @@ processed_videos/*
 temp/*
 enviroment/*
 *.sock
+**/*.mp4

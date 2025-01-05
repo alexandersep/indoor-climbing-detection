@@ -5,6 +5,7 @@ from src.body_processing import *
 from src.opticalflow_processing import *
 from src.utils import *
 import uuid
+import sys
 
 output_path_select_frame = "resources/videos/output/green-climb-trimmed-select.mp4"
 
@@ -26,6 +27,7 @@ def process_video(video_path, output_path, jobs_api):
     prevStarted = False
     prevFinished = False
 
+    first_frame_contour_bounding_boxes = []
     first_frame_contours = []
     isFirstFrame = True
     result = []
@@ -37,6 +39,10 @@ def process_video(video_path, output_path, jobs_api):
 
     ANNOTATED_VIDEO_PATH = "temp/" + str(uuid.uuid4()) + ".mp4";
     TEMP_FOLDER_NAME = "temp"
+
+    if not os.path.exists(TEMP_FOLDER_NAME):
+        os.makedirs(TEMP_FOLDER_NAME, exist_ok=True)
+
     video_writer = setup_video_writer(video, ANNOTATED_VIDEO_PATH)
     processed_video_render_data = []
     
@@ -52,32 +58,39 @@ def process_video(video_path, output_path, jobs_api):
             isFirstFrame = False
             for contour in contours:
                 cx, cy, cw, ch = cv2.boundingRect(contour)
-                first_frame_contours.append((cx, cy, cw, ch))
-            first_frame_contours = sorted(first_frame_contours, key=lambda x: x[1], reverse=True)
+                first_frame_contour_bounding_boxes.append((cx, cy, cw, ch))
+
+            first_frame_contour_bounding_boxes = sorted(first_frame_contour_bounding_boxes, key=lambda x: x[1], reverse=True)
+
+            first_frame_contours = contours
+
         limb_list = process_skeleton(frame, mp_pose, pose, mp_drawing)
-        frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, contours, start_hold, end_hold)
+        frame, isStarted, isFinished, left_hand_hold, right_hand_hold, left_foot_hold, right_foot_hold = process_hands(frame, limb_list, first_frame_contours, start_hold, end_hold)
         frameCount += 1
 
         # Update loading bar
-        #loading_bar = f"[{int(progress * 50) * '='}{(50 - int(progress * 50)) * ' '}] {progress * 100:.2f}%"
-        #sys.stdout.write(f"\rProcessing video: {loading_bar}")
-        #sys.stdout.flush()
+
         progress_percentage = (frameCount / int(video.get(cv2.CAP_PROP_FRAME_COUNT))) * 100
-        supabase, job_id = jobs_api
-        if round(progress_percentage) % 5 == 0 and last_submitted_progress_update != round(progress_percentage):
-            supabase.table("jobs").update({ "processing_progress": round(progress_percentage)}).eq("job_id", job_id).execute()
-            last_submitted_progress_update = round(progress_percentage)
+        if jobs_api:
+            supabase, job_id = jobs_api
+            if round(progress_percentage) % 5 == 0 and last_submitted_progress_update != round(progress_percentage):
+                supabase.table("jobs").update({ "processing_progress": round(progress_percentage)}).eq("job_id", job_id).execute()
+                last_submitted_progress_update = round(progress_percentage)
+        else:
+            loading_bar = f"[{int(progress_percentage/100 * 50) * '='}{(50 - int(progress_percentage/100 * 50)) * ' '}] {progress_percentage/100 * 100:.2f}%"
+            sys.stdout.write(f"\rProcessing video: {loading_bar}")
+            sys.stdout.flush()
         # printd("isStarted", isStarted)
         # printd("isFinished", isFinished)
 
         if started and not finished:
             currentFrameCount += 1
-            skip_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contours, "Left Hand", labels, fps, start_hold, end_hold)
-            skip_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contours, "Right Hand", labels, fps, start_hold, end_hold)
-            skip_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contours, "Left Foot", labels, fps, start_hold, end_hold)
-            skip_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contours, "Right Foot", labels, fps, start_hold, end_hold)
+            skip_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Hand", labels, fps, start_hold, end_hold)
+            skip_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Hand", labels, fps, start_hold, end_hold)
+            skip_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", labels, fps, start_hold, end_hold)
+            skip_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", labels, fps, start_hold, end_hold)
 
-        for hold_number, contour in enumerate(first_frame_contours):
+        for hold_number, contour in enumerate(first_frame_contour_bounding_boxes):
             x, y, w, h = contour
             (sx, sy) = start_hold
             if (sx - 50 <= x <= sx + 50) and (sy - 50 <= y <= sy + 50):
@@ -96,6 +109,7 @@ def process_video(video_path, output_path, jobs_api):
         isFinishedLeft, isFinishedRight = isFinished
         if isStartedLeft and isStartedRight:
             started = True
+            currentFrameCount = 0
         if isFinishedLeft and isFinishedRight:
             finished = True
 
@@ -104,15 +118,16 @@ def process_video(video_path, output_path, jobs_api):
         # printd("=================================================================")
 
         # Show the combined result
-        # cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
-        # cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
-        # cv2.imshow('Combined Frame', frame)
+        cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
+        cv2.imshow('Combined Frame', frame)
         video_writer.write(frame)
 
         if started and prevStarted:
-            beginFrame = currentFrameCount
+            beginFrame = frameCount
+            currentFrameCount = 0
         if finished and prevFinished:
-            endFrame = currentFrameCount
+            endFrame = frameCount
         prevStarted = isStartedLeft and isStartedRight
         prevFinished = isFinishedLeft and isFinishedRight
 
@@ -131,8 +146,6 @@ def process_video(video_path, output_path, jobs_api):
             right_hand_holds = []
             left_foot_holds = []
             right_foot_holds = []
-
-            currentFrameCount = 0 # Reset the currentFrameCount
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -160,7 +173,7 @@ def process_video(video_path, output_path, jobs_api):
 
     return result
 
-def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels, fps, start_hold, end_hold):
+def skip_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_name, labels, fps, start_hold, end_hold):
     # printd("this is skip_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
@@ -179,7 +192,7 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
         return
 
     # printd("this is skip_holds 2")
-    for hold_number, contour in enumerate(first_frame_contours):
+    for hold_number, contour in enumerate(first_frame_contour_bounding_boxes):
         cx, cy, cw, ch = contour
         if (cx - 40 <= x <= cx + 40) and (cy - 40 <= y <= cy + 40):
             printd("other")
@@ -189,14 +202,14 @@ def skip_holds(holds, hold, frameCount, first_frame_contours, limb_name, labels,
                 printd("start")
                 labels.append( (limb_name, "Start Hold", str(frameCount / fps)) )
                 isSkip = True
-                continue
+                break
 
             (ex, ey) = end_hold
             if (ex - 40 <= cx <= ex + 40) and (ey - 40 <= cy <= ey + 40):
                 printd("end")
                 labels.append( (limb_name, "End Hold", str(frameCount / fps)) )
                 isSkip = True
-                continue
+                break
             labels.append( (limb_name, "Hold " + str(hold_number), str(frameCount / fps)) )
             break
     # printd("this is skip_holds 3")
