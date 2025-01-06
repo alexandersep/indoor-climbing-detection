@@ -4,16 +4,18 @@ import numpy as np
 from src.utils import dist
 
 def process_hands(frame, limb_list, contours, start_hold, end_hold):
+    HITBOX_PADDING = 10
     min_contours = []
     for limb, limb_name in limb_list:
         if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX' or limb_name == 'LEFT_FOOT_INDEX' or limb_name == 'RIGHT_FOOT_INDEX':
             limb_x, limb_y = limb # Usually left index finger
-            min_dist = float('inf')
+            # min_dist = float('inf')
             for contour in contours:
-                x, y = calculate_centroid(contour)
-                distance = dist(x, y, limb_x, limb_y)
-                if min_dist > distance and distance < 100: # Ensure the hand is close to the hold
-                    min_dist = distance
+                x, y, w, h = cv2.boundingRect(contour)
+                # x, y = calculate_centroid(contour)
+                # distance = dist(x, y, limb_x, limb_y)
+                if x - HITBOX_PADDING <= limb_x <= x + w + HITBOX_PADDING and y - HITBOX_PADDING <= limb_y <= y + h + HITBOX_PADDING:
+                    # min_dist = distance
                     min_contours.append( (contour, limb_name) )
 
     left_hand_hold = ((-1, -1), (-1, -1))
@@ -23,7 +25,7 @@ def process_hands(frame, limb_list, contours, start_hold, end_hold):
     started_left, started_right = False, False
     finished_left, finished_right = False, False
     for (min_contour, limb_name) in min_contours: 
-        x, y = calculate_centroid(min_contour)
+        # x, y = calculate_centroid(min_contour)
         x, y, w, h = cv2.boundingRect(min_contour)
         if limb_name == 'LEFT_INDEX':
             color = (255, 0, 0)
