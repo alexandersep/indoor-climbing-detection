@@ -98,7 +98,7 @@ def process_video(video_path, output_path, jobs_api):
                 last_submitted_progress_update = round(progress_percentage)
         else:
             loading_bar = f"[{int(progress_percentage/100 * 50) * '='}{(50 - int(progress_percentage/100 * 50)) * ' '}] {progress_percentage/100 * 100:.2f}%"
-            sys.stdout.write(f"\rProcessing video: {loading_bar}")
+            sys.stdout.write(f"\rProcessing video: {loading_bar}\n")
             sys.stdout.flush()
         
         
@@ -116,17 +116,23 @@ def process_video(video_path, output_path, jobs_api):
             endFrame = frameCount
         prevStarted = isStartedLeft and isStartedRight
         prevFinished = isFinishedLeft and isFinishedRight
-        
+
         isLastFrame = started and (finished and not prevFinished)
+        
+        # printd("started: " + str(started))
+        # printd("prevStarted: " + str(prevStarted))
+        # printd("finished: " + str(finished))
+        # printd("prevFinished: " + str(prevFinished))
             
-        if (started and not finished) or isLastFrame:
+        if started:
+            # printd("Running log holds")
             if not startedFirst:
                 currentFrameCount = 0
-            log_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Hand", labels, fps, start_hold, end_hold, hold_detection_buffers, ignoreBuffer=isLastFrame)
-            log_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Hand", labels, fps, start_hold, end_hold, hold_detection_buffers, ignoreBuffer=isLastFrame)
-            log_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", labels, fps, start_hold, end_hold, hold_detection_buffers, ignoreBuffer=False)
-            log_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", labels, fps, start_hold, end_hold, hold_detection_buffers, ignoreBuffer=False)
-            currentFrameCount += 1
+            log_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Hand", labels, fps, start_hold, end_hold, hold_detection_buffers)
+            log_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Hand", labels, fps, start_hold, end_hold, hold_detection_buffers)
+            log_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", labels, fps, start_hold, end_hold, hold_detection_buffers)
+            log_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", labels, fps, start_hold, end_hold, hold_detection_buffers)
+        currentFrameCount += 1
 
         # Last Frame of sub video
         if isLastFrame:
@@ -194,8 +200,8 @@ def process_video(video_path, output_path, jobs_api):
 
 
 
-def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_name, labels, fps, start_hold, end_hold, hold_detection_buffers, ignoreBuffer):
-    FRAMES_TO_CHECK = fps/2
+def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_name, labels, fps, start_hold, end_hold, hold_detection_buffers):
+    FRAMES_TO_CHECK = int(fps/3)
     # printd("this is log_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
@@ -217,40 +223,39 @@ def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_
     for hold_number, contour in enumerate(first_frame_contour_bounding_boxes):
         cx, cy, cw, ch = contour
         if (cx - 30 <= x <= cx + 30) and (cy - 30 <= y <= cy + 30):
-            if(not ignoreBuffer):
-                isOnSameHold = hold_detection_buffers[limb_name]["Hold"] == hold_number
-                touchedInPrevFrame = hold_detection_buffers[limb_name]["lastFrame"] == frameCount - 1
-                if(not isOnSameHold or not touchedInPrevFrame):
-                    hold_detection_buffers[limb_name]["count"] = 1
-                    hold_detection_buffers[limb_name]["Hold"] = hold_number
-                    hold_detection_buffers[limb_name]["lastFrame"] = frameCount
-                    break
-                
-                isBelowThreshold = hold_detection_buffers[limb_name]["count"] < FRAMES_TO_CHECK
-                if(isBelowThreshold):
-                    hold_detection_buffers[limb_name]["count"] = hold_detection_buffers[limb_name]["count"] + 1
-                    hold_detection_buffers[limb_name]["lastFrame"] = frameCount
-                    break
+            isOnSameHold = hold_detection_buffers[limb_name]["Hold"] == hold_number
+            touchedInPrevFrame = hold_detection_buffers[limb_name]["lastFrame"] == frameCount - 1
+            if(not isOnSameHold or not touchedInPrevFrame):
+                hold_detection_buffers[limb_name]["count"] = 1
+                hold_detection_buffers[limb_name]["Hold"] = hold_number
+                hold_detection_buffers[limb_name]["lastFrame"] = frameCount
+                break
+            
+            isBelowThreshold = hold_detection_buffers[limb_name]["count"] < FRAMES_TO_CHECK
+            if(isBelowThreshold):
+                hold_detection_buffers[limb_name]["count"] = hold_detection_buffers[limb_name]["count"] + 1
+                hold_detection_buffers[limb_name]["lastFrame"] = frameCount
+                break
             
             # if reached threshold on the same limb and hold for FRAMES_TO_CHECK frames in a row
             initial_hold_frame = frameCount - FRAMES_TO_CHECK 
             holds.append( ((cx, cy), (cw, ch), initial_hold_frame) )
             (sx, sy) = start_hold
             if (sx == cx and sy == cy):
-                printd("Start Hold touched at " + str(initial_hold_frame / fps))
+                printd(limb_name + " touched Start Hold at " + str(initial_hold_frame / fps))
                 labels.append( (limb_name, "Start Hold", str(initial_hold_frame / fps)) )
                 isSkip = True
                 break
 
             (ex, ey) = end_hold
             if (ex == cx and ey == cy):
-                printd("End Hold touched at " + str(initial_hold_frame / fps))
+                printd(limb_name + " touched End Hold at " + str(initial_hold_frame / fps))
                 labels.append( (limb_name, "End Hold", str(initial_hold_frame / fps)) )
                 isSkip = True
                 break
-
+            
+            printd(limb_name + " touched Hold " + str(hold_number) + " at " + str(initial_hold_frame / fps))
             labels.append( (limb_name, "Hold " + str(hold_number), str(initial_hold_frame / fps)))
-            printd("Hold " + str(hold_number) + " touched at " + str(initial_hold_frame / fps))
             break
     # printd("this is log_holds 3")
 
