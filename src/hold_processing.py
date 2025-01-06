@@ -4,7 +4,7 @@ import numpy as np
 from src.utils import dist
 
 def process_hands(frame, limb_list, contours, start_hold, end_hold):
-    HITBOX_PADDING = 10
+    HITBOX_PADDING = 20
     min_contours = []
     for limb, limb_name in limb_list:
         if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX' or limb_name == 'LEFT_FOOT_INDEX' or limb_name == 'RIGHT_FOOT_INDEX':
