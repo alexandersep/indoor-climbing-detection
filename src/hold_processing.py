@@ -8,14 +8,10 @@ def process_hands(frame, limb_list, contours, start_hold, end_hold):
     min_contours = []
     for limb, limb_name in limb_list:
         if limb_name == 'LEFT_INDEX' or limb_name == 'RIGHT_INDEX' or limb_name == 'LEFT_FOOT_INDEX' or limb_name == 'RIGHT_FOOT_INDEX':
-            limb_x, limb_y = limb # Usually left index finger
-            # min_dist = float('inf')
+            limb_x, limb_y = limb
             for contour in contours:
                 x, y, w, h = cv2.boundingRect(contour)
-                # x, y = calculate_centroid(contour)
-                # distance = dist(x, y, limb_x, limb_y)
                 if x - HITBOX_PADDING <= limb_x <= x + w + HITBOX_PADDING and y - HITBOX_PADDING <= limb_y <= y + h + HITBOX_PADDING:
-                    # min_dist = distance
                     min_contours.append( (contour, limb_name) )
 
     left_hand_hold = ((-1, -1), (-1, -1))
@@ -67,7 +63,6 @@ def process_holds(frame):
     lower_green = np.array([35, 40, 50])
     upper_green = np.array([85, 255, 255])
     green_mask = cv2.inRange(hsv_image, lower_green, upper_green)
-
     disc = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, disc)
     green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, disc)
@@ -108,13 +103,10 @@ def get_circles(frame):
     circles = cv2.HoughCircles(blurred_image, 
                                 cv2.HOUGH_GRADIENT, dp=1, minDist=20, 
                                 param1=150, param2=30, minRadius=10, maxRadius=25)
-    
-    circle_list = []
     if circles is not None:
-        unpacked_circles = np.round(circles[0, :]).astype("int")
-        for found in unpacked_circles:
-            circle_list.append(found)
-    return unpacked_circles
+        return np.round(circles[0, :]).astype("int")
+    else:
+        return None
 
 
 def calculate_hold(holds, isEnd):
@@ -123,12 +115,9 @@ def calculate_hold(holds, isEnd):
     min_dist = float("inf")
     closest_hold = None
     
-    # Loop through each hold to find the closest one with a positive slope
     for circle_coords, contour in holds:
         circle_x, circle_y = circle_coords
         contour_x, contour_y = calculate_centroid(contour)
-        
-        # Ensure that the contour has a positive slope towards the circle
         if isEnd:
             if contour_y < circle_y and highest == (contour_x, contour_y):
                 temp_dist = dist(circle_x, circle_y, contour_x, contour_y)
@@ -153,12 +142,9 @@ def find_highest_hold(holds):
             lowest_y = y
     return (lowest_x, lowest_y)
 
-# Function to calculate and draw the centroid of a contour
 def calculate_centroid(contour):
-    # Step 1: Calculate the moments of the contour
     moments = cv2.moments(contour)
     
-    # Step 2: Calculate the x and y coordinates of the centroid
     if moments['m00'] != 0:  # To avoid division by zero
         cx = int(moments['m10'] / moments['m00'])
         cy = int(moments['m01'] / moments['m00'])

@@ -9,3 +9,4 @@ temp/*
 enviroment/*
 *.sock
 **/*.mp4
+*.jpg

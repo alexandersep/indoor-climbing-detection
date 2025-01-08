@@ -2,7 +2,6 @@ import cv2
 import os
 from src.hold_processing import *
 from src.body_processing import *
-from src.opticalflow_processing import *
 from src.utils import *
 import uuid
 import sys
@@ -19,9 +18,9 @@ def process_video(video_path, output_path, jobs_api):
 
     currentFrameCount = 0
     frameCount = 0
-    started = False
-    startedFirst = False
-    finished = False
+    started = False # has the climb started
+    startedFirst = False # If frame = first frame when climb started
+    finished = False # has the climb finished
     beginFrame = 0
     endFrame = 0
 
@@ -30,7 +29,7 @@ def process_video(video_path, output_path, jobs_api):
 
     first_frame_contour_bounding_boxes = []
     result = []
-    labels = []
+    events = []
     left_hand_holds = []
     right_hand_holds = []
     left_foot_holds = []
@@ -39,7 +38,6 @@ def process_video(video_path, output_path, jobs_api):
     ANNOTATED_VIDEO_PATH = "temp/" + str(uuid.uuid4()) + ".mp4";
     TEMP_FOLDER_NAME = "temp"
 
-    ignoreBuffer = False
     hold_detection_buffers = {
         "Left Hand": {
             "Hold": 0,
@@ -123,53 +121,49 @@ def process_video(video_path, output_path, jobs_api):
         # printd("prevStarted: " + str(prevStarted))
         # printd("finished: " + str(finished))
         # printd("prevFinished: " + str(prevFinished))
-            
+        
+        # runs for every frame of sub-video
         if started:
-            # printd("Running log holds")
             if not startedFirst:
                 currentFrameCount = 0
-            log_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Hand", labels, fps, start_hold, end_hold, hold_detection_buffers)
-            log_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Hand", labels, fps, start_hold, end_hold, hold_detection_buffers)
-            log_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", labels, fps, start_hold, end_hold, hold_detection_buffers)
-            log_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", labels, fps, start_hold, end_hold, hold_detection_buffers)
+            log_holds(left_hand_holds, left_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Hand", events, fps, start_hold, end_hold, hold_detection_buffers, frame)
+            log_holds(right_hand_holds, right_hand_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Hand", events, fps, start_hold, end_hold, hold_detection_buffers, frame)
+            log_holds(left_foot_holds, left_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Left Foot", events, fps, start_hold, end_hold, hold_detection_buffers, frame)
+            log_holds(right_foot_holds, right_foot_hold, currentFrameCount, first_frame_contour_bounding_boxes, "Right Foot", events, fps, start_hold, end_hold, hold_detection_buffers, frame)
         currentFrameCount += 1
 
-        # Last Frame of sub video
+        # Last Frame of sub-video
         if isLastFrame:
-            distinct_file_name = str(uuid.uuid4()) + ".mp4"
-            # endFrame += 180
-            processed_video_render_data.append((distinct_file_name, beginFrame, endFrame))
+            if(len(events) > 0):
+                distinct_file_name = str(uuid.uuid4()) + ".mp4"
+                processed_video_render_data.append((distinct_file_name, beginFrame, endFrame))
+                result.append( (distinct_file_name, events) )
+            
             started = False
             prevStarted = False
             finished = False
             prevFinished = False
             startedFirst = False
-
-            result.append( (distinct_file_name, labels) )
-            labels = []
+            events = []
             left_hand_holds = []
             right_hand_holds = []
             left_foot_holds = []
             right_foot_holds = []
 
         for hold_number, boundng_box in enumerate(first_frame_contour_bounding_boxes):
-            x, y, w, h = boundng_box
+            x, y, _, _ = boundng_box
             (sx, sy) = start_hold
+            (ex, ey) = end_hold
             if (sx - 50 <= x <= sx + 50) and (sy - 50 <= y <= sy + 50):
                 cv2.putText(frame, "Start Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                continue
-
-            (ex, ey) = end_hold
-            if (ex - 50 <= x <= ex + 50) and (ey - 50 <= y <= ey + 50):
+            elif (ex - 50 <= x <= ex + 50) and (ey - 50 <= y <= ey + 50):
                 cv2.putText(frame, "End Hold", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                continue
-
-            #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 5)
-            cv2.putText(frame, "Hold " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-        # cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
-        # cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
-        # cv2.imshow('Combined Frame', frame)
+            else:
+                cv2.putText(frame, "Hold " + str(hold_number), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        
+        cv2.namedWindow('Combined Frame', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Combined Frame', int(frame_width/2), int(frame_height/2))
+        cv2.imshow('Combined Frame', frame)
         video_writer.write(frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -200,13 +194,12 @@ def process_video(video_path, output_path, jobs_api):
 
 
 
-def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_name, labels, fps, start_hold, end_hold, hold_detection_buffers):
-    FRAMES_TO_CHECK = int(fps/3)
+def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_name, events, fps, start_hold, end_hold, hold_detection_buffers, frame):
+    FRAMES_TO_CHECK = int(fps/3) # 10 frames at 30 fps. 333ms always
     # printd("this is log_holds 1")
     ((x, y), (_, _)) = hold
     if hold == ((-1, -1), (-1, -1)):
         return
-
 
     isSkip = False
     for limb in holds:
@@ -223,6 +216,7 @@ def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_
     for hold_number, contour in enumerate(first_frame_contour_bounding_boxes):
         cx, cy, cw, ch = contour
         if (cx - 30 <= x <= cx + 30) and (cy - 30 <= y <= cy + 30):
+            cv2.rectangle(frame, (cx, cy), (cx + cw, cy + ch), (255, 0, 0), 5)
             isOnSameHold = hold_detection_buffers[limb_name]["Hold"] == hold_number
             touchedInPrevFrame = hold_detection_buffers[limb_name]["lastFrame"] == frameCount - 1
             if(not isOnSameHold or not touchedInPrevFrame):
@@ -238,25 +232,24 @@ def log_holds(holds, hold, frameCount, first_frame_contour_bounding_boxes, limb_
                 break
             
             # if reached threshold on the same limb and hold for FRAMES_TO_CHECK frames in a row
-            initial_hold_frame = frameCount - FRAMES_TO_CHECK 
+            initial_hold_frame = frameCount # - FRAMES_TO_CHECK 
             holds.append( ((cx, cy), (cw, ch), initial_hold_frame) )
             (sx, sy) = start_hold
+            (ex, ey) = end_hold
             if (sx == cx and sy == cy):
                 printd(limb_name + " touched Start Hold at " + str(initial_hold_frame / fps))
-                labels.append( (limb_name, "Start Hold", str(initial_hold_frame / fps)) )
+                events.append( (limb_name, "Start Hold", str(initial_hold_frame / fps)) )
                 isSkip = True
                 break
-
-            (ex, ey) = end_hold
-            if (ex == cx and ey == cy):
+            elif (ex == cx and ey == cy):
                 printd(limb_name + " touched End Hold at " + str(initial_hold_frame / fps))
-                labels.append( (limb_name, "End Hold", str(initial_hold_frame / fps)) )
+                events.append( (limb_name, "End Hold", str(initial_hold_frame / fps)) )
                 isSkip = True
                 break
-            
-            printd(limb_name + " touched Hold " + str(hold_number) + " at " + str(initial_hold_frame / fps))
-            labels.append( (limb_name, "Hold " + str(hold_number), str(initial_hold_frame / fps)))
-            break
+            else:
+                printd(limb_name + " touched Hold " + str(hold_number) + " at " + str(initial_hold_frame / fps))
+                events.append( (limb_name, "Hold " + str(hold_number), str(initial_hold_frame / fps)))
+                break
     # printd("this is log_holds 3")
 
 def setup_video_writer(video, filepath):

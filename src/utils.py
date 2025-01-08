@@ -8,13 +8,12 @@ def dist(x1, y1, x2, y2):
     return np.sqrt( (x2 - x1)**2 + (y2 - y1)**2 )
 
 def load_video(video_path):
-    printd(video_path)
+    printd("Loading video from path: " + str(video_path))
     video = cv2.VideoCapture(video_path)
-    printd(video)
     frame_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-    printd(frame_width)
+    printd("Video width: " + str(frame_width))
     frame_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    printd(frame_height)
+    printd("Video height: " + str(frame_height))
     fps = int(video.get(cv2.CAP_PROP_FPS))
     codec = cv2.VideoWriter_fourcc(*'mp4v')
     printd(fps)
